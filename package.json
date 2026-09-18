@@ -1,0 +1,12 @@
+{
+  "name": "trustforce-oss-bss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based OSS/BSS demo for TrustForce Myanmar: subscribers, billing, RADIUS/CoA, ODN fibre plant, helpdesk, inventory, analytics.",
+  "scripts": {
+    "start": "npx --yes serve .",
+    "dev": "npx --yes serve ."
+  },
+  "keywords": ["oss", "bss", "isp", "ftth", "odn", "radius", "billing"],
+  "license": "UNLICENSED"
+}

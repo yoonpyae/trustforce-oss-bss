@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrustForce OSS/BSS</title>
+<meta name="description" content="OSS/BSS demo for TrustForce Myanmar — subscribers, billing, FreeRADIUS and the optical distribution network in one console.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="shell">
+
+  <div class="brand">
+    <div class="brand-mark">TF</div>
+    <div>
+      <div class="brand-name">TrustForce</div>
+      <div class="brand-sub">OSS / BSS</div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <button id="nav-toggle" class="btn sm ghost" aria-label="Toggle navigation">☰</button>
+    <div class="omni">
+      <span class="omni-icon" aria-hidden="true">⌕</span>
+      <input id="omni" type="search" autocomplete="off" placeholder="Search anything — subscriber, ONU serial, MAC, SN-004, DN-002, INV-26014  (Ctrl K)" aria-label="Global search">
+      <div id="omni-results" class="omni-results" role="listbox" style="display:none"></div>
+    </div>
+    <div class="topbar-actions">
+      <button id="theme" class="btn sm ghost" aria-label="Toggle light or dark theme">◐</button>
+      <div class="whoami">
+        <b id="who-name">—</b>
+        <span id="who-role">—</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="rail" id="rail" aria-label="Main"></nav>
+
+  <main class="main" id="main"></main>
+</div>
+
+<script src="assets/js/core/ui.js"></script>
+<script src="assets/js/data/seed.js"></script>
+<script src="assets/js/core/store.js"></script>
+<script src="assets/js/views/dashboard.js"></script>
+<script src="assets/js/views/subscribers.js"></script>
+<script src="assets/js/views/billing.js"></script>
+<script src="assets/js/views/tariffs.js"></script>
+<script src="assets/js/views/odn.js"></script>
+<script src="assets/js/views/topology.js"></script>
+<script src="assets/js/views/network.js"></script>
+<script src="assets/js/views/alarms.js"></script>
+<script src="assets/js/views/helpdesk.js"></script>
+<script src="assets/js/views/inventory.js"></script>
+<script src="assets/js/views/messaging.js"></script>
+<script src="assets/js/views/reports.js"></script>
+<script src="assets/js/views/settings.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

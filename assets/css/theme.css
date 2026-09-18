@@ -1,0 +1,110 @@
+/* TrustForce OSS/BSS — design tokens
+   Palette reads as a fibre NOC instrument panel: deep ink shell, cyan light
+   (1310/1490nm optical cyan), amber for degrading signal, coral for faults. */
+
+:root {
+  --ink-900: #061821;
+  --ink-800: #0a2330;
+  --ink-700: #0f2f3f;
+  --ink-600: #16404f;
+  --line:    #1c4c5e;
+  --line-soft: rgba(120, 190, 210, 0.14);
+
+  --text:    #e4f1f6;
+  --text-dim:#93b3c0;
+  --text-mute:#63879a;
+
+  --cyan:    #2fd3e1;
+  --cyan-deep:#1b9bc4;
+  --cyan-wash: rgba(47, 211, 225, 0.12);
+
+  --good:    #34d399;
+  --warn:    #f5a524;
+  --bad:     #ff5d73;
+  --idle:    #7c93a3;
+  --violet:  #9b8cff;
+
+  --shell-pad: 18px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-head: "Barlow Semi Condensed", "Barlow", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --bg: var(--ink-900);
+  --panel: var(--ink-800);
+  --panel-2: var(--ink-700);
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="light"] {
+  --ink-900: #eef4f7;
+  --ink-800: #ffffff;
+  --ink-700: #f5f9fb;
+  --ink-600: #e6eff3;
+  --line: #cfe0e8;
+  --line-soft: rgba(15, 47, 63, 0.10);
+  --text: #0c2a38;
+  --text-dim: #43697c;
+  --text-mute: #6b8a99;
+  --cyan: #0e93b3;
+  --cyan-deep: #0b7fa0;
+  --cyan-wash: rgba(14, 147, 179, 0.10);
+  --good: #0f9d67;
+  --warn: #c7811b;
+  --bad: #d63f57;
+  --idle: #7b93a1;
+  --violet: #6b5dd3;
+  --shadow: 0 12px 30px rgba(12, 42, 56, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  margin: 0;
+}
+h1 { font-size: 26px; line-height: 1.15; }
+h2 { font-size: 19px; }
+h3 { font-size: 15.5px; }
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: var(--ink-600);
+  border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
