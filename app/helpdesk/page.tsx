@@ -4,6 +4,7 @@ import * as s from "@/lib/schema";
 import { Pill } from "@/components/Pill";
 import { relTime } from "@/lib/format";
 import { moveTicket } from "@/lib/actions/tickets";
+import { getMttrByTechnician } from "@/lib/queries/reports";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +16,31 @@ const STAGES = [
 ] as const;
 
 export default async function HelpdeskPage() {
-  const tickets = await db.select().from(s.tickets);
-  const customers = await db.select({ id: s.customers.id, fullName: s.customers.fullName, zone: s.customers.zone }).from(s.customers);
+  const [tickets, customers, mttr] = await Promise.all([
+    db.select().from(s.tickets),
+    db.select({ id: s.customers.id, fullName: s.customers.fullName, zone: s.customers.zone }).from(s.customers),
+    getMttrByTechnician(),
+  ]);
   const custMap = new Map(customers.map((c) => [c.id, c]));
+  const now = Date.now();
+  const slaBreached = tickets.filter((t) => t.status !== "resolved" && t.slaDueAt && new Date(t.slaDueAt).getTime() < now).length;
+  const critical = tickets.filter((t) => t.status !== "resolved" && t.priority === "critical").length;
+  const avgMttr = mttr.length ? +(mttr.reduce((a, m) => a + m.mttrHours * m.count, 0) / mttr.reduce((a, m) => a + m.count, 0)).toFixed(1) : 0;
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Helpdesk</h1>
+          <h1>Ticket dashboard</h1>
           <p>{tickets.length} tickets. Kanban lifecycle Open → Assigned → In-progress → Resolved, each move writes a real row and audit entry.</p>
         </div>
+      </div>
+
+      <div className="grid g4" style={{ marginBottom: 14 }}>
+        <div className="card kpi"><span className="label">Open + assigned</span><span className="value num">{tickets.filter((t) => t.status === "open" || t.status === "assigned").length}</span></div>
+        <div className="card kpi"><span className="label">In progress</span><span className="value num">{tickets.filter((t) => t.status === "in-progress").length}</span></div>
+        <div className="card kpi"><span className="label">SLA breached</span><span className="value num" style={{ color: "var(--bad)" }}>{slaBreached}</span><span className="foot">{critical} critical open</span></div>
+        <div className="card kpi"><span className="label">Avg MTTR</span><span className="value num">{avgMttr}h</span><span className="foot">across {mttr.reduce((a, m) => a + m.count, 0)} resolved</span></div>
       </div>
 
       <div className="kanban">

@@ -40,6 +40,14 @@ export async function getBillingKpis() {
   };
 }
 
+export async function getPaymentMethodBreakdown() {
+  const ago30 = new Date(Date.now() - 30 * 86400000);
+  const payments = await db.select().from(s.payments).where(gte(s.payments.timestamp, ago30));
+  const byMethod = new Map<string, number>();
+  for (const p of payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amountMmk);
+  return Array.from(byMethod.entries()).map(([method, value]) => ({ method, value }));
+}
+
 export async function listVouchers(opts: { status?: string }) {
   const conds = [];
   if (opts.status) conds.push(eq(s.vouchers.status, opts.status));

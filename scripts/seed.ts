@@ -87,9 +87,10 @@ async function main() {
 
   console.log("Clearing existing rows…");
   for (const table of [
-    s.auditLog, s.campaigns, s.alarms, s.assets, s.inventoryItems, s.tickets, s.vouchers,
-    s.payments, s.invoices, s.onus, s.splitterNodes, s.distributionNodes, s.fibers, s.ponPorts,
-    s.olts, s.customers, s.tariffs, s.nasDevices, s.ipPools, s.bandwidthProfiles, s.staff,
+    s.auditLog, s.campaigns, s.alarms, s.assets, s.inventoryItems, s.appointments, s.leads,
+    s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes, s.distributionNodes,
+    s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices, s.ipPools,
+    s.bandwidthProfiles, s.staff,
   ]) {
     await db.execute(sql`TRUNCATE TABLE ${table} CASCADE`);
   }
@@ -426,6 +427,56 @@ async function main() {
     { id: "CMP-013", audience: "active", channel: "whatsapp", template: "TPL-OUTAGE", recipientCount: 96, status: "sent", createdBy: "noc.zaw", createdAt: new Date(NOW - 9 * DAY_MS) },
     { id: "CMP-012", audience: "active", channel: "sms", template: "TPL-WELCOME", recipientCount: 180, status: "sent", createdBy: "sales.team", createdAt: new Date(NOW - 21 * DAY_MS) },
   ]);
+
+  // ---------------- leads (CRM inquiries, separate from provisioned customers) ----------------
+  const LEAD_SOURCES = ["website", "referral", "walk-in", "facebook", "call", "field-survey"];
+  const LEAD_STATUSES = ["new", "contacted", "qualified", "quoted", "won", "lost"] as const;
+  const leadRows: (typeof s.leads.$inferInsert)[] = [];
+  for (let i = 1; i <= 24; i++) {
+    const gender = chance(0.5);
+    const isBiz = chance(0.2);
+    const name = isBiz ? pick(ORGS) : `${gender ? pick(FIRST_M) : pick(FIRST_F)} ${pick(LAST)}`;
+    const status = i <= 6 ? "new" : i <= 11 ? "contacted" : i <= 15 ? "qualified" : i <= 18 ? "quoted" : i <= 21 ? "won" : "lost";
+    const zone = pick(ZONES).zone;
+    const createdAt = new Date(NOW - int(1, 45) * DAY_MS);
+    const convertedCustomer = status === "won" ? pick(customerRows).id as string : null;
+    leadRows.push({
+      id: "LD-" + String(i).padStart(4, "0"), fullName: name, phone: "09" + int(700000000, 799999999),
+      email: chance(0.6) ? (isBiz ? name.toLowerCase().replace(/[^a-z]+/g, ".") : "lead" + i) + "@example.mm" : null,
+      source: pick(LEAD_SOURCES), zone, address: `${zone}, Yangon`,
+      interestedTariffId: chance(0.7) ? pick(TARIFFS).id : null,
+      status, assignedTo: "sales.team",
+      notes: chance(0.4) ? "Follow up after payday." : null,
+      lostReason: status === "lost" ? pick(["Chose a competitor", "Price too high", "Out of coverage area", "No longer interested"]) : null,
+      convertedCustomerId: convertedCustomer,
+      createdAt, updatedAt: createdAt,
+    });
+  }
+  await db.insert(s.leads).values(leadRows);
+
+  // ---------------- schedule (field visits) ----------------
+  const APPT_TYPES = ["installation", "repair", "maintenance", "survey"] as const;
+  const apptRows: (typeof s.appointments.$inferInsert)[] = [];
+  for (let i = 1; i <= 30; i++) {
+    const dayOffset = int(-4, 10); // spread across past few days and next ~10 days
+    const scheduledAt = new Date(NOW + dayOffset * DAY_MS + int(8, 17) * 3600000);
+    const isPast = scheduledAt.getTime() < NOW;
+    const status = isPast ? pick(["completed", "completed", "completed", "cancelled", "pending"]) : pick(["pending", "pending", "pending", "in-progress"]);
+    const type = pick(APPT_TYPES);
+    const useCustomer = chance(0.75);
+    const cust = useCustomer ? pick(customerRows) : null;
+    const lead = !useCustomer ? pick(leadRows) : null;
+    apptRows.push({
+      id: "APT-" + String(i).padStart(4, "0"), type, technician: pick(TECHS),
+      scheduledAt, durationMinutes: pick([30, 60, 90, 120]), status,
+      customerId: cust ? cust.id as string : null, leadId: lead ? lead.id as string : null, ticketId: null,
+      address: cust ? cust.address as string : lead ? lead.address : null,
+      notes: type === "installation" ? "New service installation" : type === "repair" ? "Reported fault" : type === "survey" ? "Feasibility / site survey" : "Scheduled maintenance",
+    });
+  }
+  await db.insert(s.appointments).values(apptRows);
+
+  console.log(`Seeded ${leadRows.length} leads, ${apptRows.length} appointments.`);
 
   // ---------------- audit log ----------------
   const AUDIT_ACTS: [string, string, string, string][] = [

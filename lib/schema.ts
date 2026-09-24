@@ -277,3 +277,44 @@ export const campaigns = pgTable("campaigns", {
   createdBy: text("created_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// CRM: leads (pre-sale inquiries, distinct from provisioned customers)
+// ---------------------------------------------------------------------------
+
+export const leads = pgTable("leads", {
+  id: text("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  source: text("source").notNull().default("website"), // website | referral | walk-in | facebook | call | field-survey
+  zone: text("zone"),
+  address: text("address"),
+  interestedTariffId: text("interested_tariff_id"),
+  status: text("status").notNull().default("new"), // new | contacted | qualified | quoted | won | lost
+  assignedTo: text("assigned_to"),
+  notes: text("notes"),
+  lostReason: text("lost_reason"),
+  convertedCustomerId: text("converted_customer_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Scheduling: field visits (installation, repair, maintenance, survey)
+// ---------------------------------------------------------------------------
+
+export const appointments = pgTable("appointments", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(), // installation | repair | maintenance | survey
+  customerId: text("customer_id"),
+  leadId: text("lead_id"),
+  ticketId: text("ticket_id"),
+  technician: text("technician").notNull(),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  status: text("status").notNull().default("pending"), // pending | in-progress | completed | cancelled
+  address: text("address"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

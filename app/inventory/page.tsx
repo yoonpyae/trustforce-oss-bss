@@ -7,22 +7,41 @@ import { issueStock, receiveStock } from "@/lib/actions/inventory";
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-  const [items, assets] = await Promise.all([
+  const [items, assets, allAssets] = await Promise.all([
     db.select().from(s.inventoryItems),
     db.select().from(s.assets).limit(60),
+    db.select({ id: s.assets.id, boundCustomerId: s.assets.boundCustomerId }).from(s.assets),
   ]);
   const customers = await db.select({ id: s.customers.id, fullName: s.customers.fullName }).from(s.customers);
   const custMap = new Map(customers.map((c) => [c.id, c.fullName]));
   const lowStock = items.filter((i) => i.onHand <= i.reorderLevel);
+  const stockValue = items.reduce((a, i) => a + i.onHand * i.unitCostMmk, 0);
+  const boundAssets = allAssets.filter((a) => a.boundCustomerId).length;
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Inventory</h1>
+          <h1>Inventory dashboard</h1>
           <p>{items.length} SKUs · {lowStock.length} at or below reorder level. Issue/receive writes real stock movements.</p>
         </div>
       </div>
+
+      <div className="grid g4" style={{ marginBottom: 14 }}>
+        <div className="card kpi"><span className="label">Stock on hand (value)</span><span className="value num">{mmk(stockValue)}</span></div>
+        <div className="card kpi"><span className="label">Low stock SKUs</span><span className="value num" style={{ color: lowStock.length ? "var(--bad)" : undefined }}>{lowStock.length}</span></div>
+        <div className="card kpi"><span className="label">Assets bound to customers</span><span className="value num">{boundAssets}</span><span className="foot">of {allAssets.length} tracked</span></div>
+        <div className="card kpi"><span className="label">SKUs tracked</span><span className="value num">{items.length}</span></div>
+      </div>
+
+      {lowStock.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, borderColor: "var(--warn)" }}>
+          <header><h3>Reorder alerts</h3></header>
+          <div className="badge-row">
+            {lowStock.map((i) => <span key={i.id} className="pill warn">{i.name}: {i.onHand} left</span>)}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 14 }}>
         <header><h3>Warehouse stock</h3></header>

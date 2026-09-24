@@ -4,18 +4,23 @@ import { eq } from "drizzle-orm";
 import { simOnuOptical, simOltPortTraffic } from "@/lib/sim";
 
 export async function getPlantOverview() {
-  const [olts, dns, sns, fibers, onus] = await Promise.all([
+  const [olts, dns, sns, fibers, onus, ponPorts] = await Promise.all([
     db.select().from(s.olts),
     db.select().from(s.distributionNodes),
     db.select().from(s.splitterNodes),
     db.select().from(s.fibers),
     db.select({ snId: s.onus.snId }).from(s.onus),
+    db.select({ id: s.ponPorts.id, oltId: s.ponPorts.oltId }).from(s.ponPorts),
   ]);
   const countBySn = new Map<string, number>();
   for (const o of onus) countBySn.set(o.snId, (countBySn.get(o.snId) ?? 0) + 1);
+  const oltByPort = new Map(ponPorts.map((p) => [p.id, p.oltId]));
 
   return {
-    olts, dns, sns: sns.map((sn) => ({ ...sn, customers: countBySn.get(sn.id) ?? 0 })), fibers,
+    olts,
+    dns: dns.map((d) => ({ ...d, oltId: oltByPort.get(d.ponPortId) ?? "" })),
+    sns: sns.map((sn) => ({ ...sn, customers: countBySn.get(sn.id) ?? 0 })),
+    fibers,
   };
 }
 

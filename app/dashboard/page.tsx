@@ -1,4 +1,8 @@
 import { getDashboardMetrics, getWeakPoints } from "@/lib/queries/dashboard";
+import { getLeadsFunnel } from "@/lib/queries/leads";
+import { getScheduleStats } from "@/lib/queries/schedule";
+import { db } from "@/lib/db";
+import * as s from "@/lib/schema";
 import { mmk, num } from "@/lib/format";
 import { LineChart, Donut } from "@/components/Charts";
 import Link from "next/link";
@@ -6,8 +10,13 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const m = await getDashboardMetrics();
-  const weak = await getWeakPoints();
+  const [m, weak, leadsFunnel, scheduleStats, lowStockCount] = await Promise.all([
+    getDashboardMetrics(),
+    getWeakPoints(),
+    getLeadsFunnel(),
+    getScheduleStats(),
+    db.select().from(s.inventoryItems).then((rows) => rows.filter((r) => r.onHand <= r.reorderLevel).length),
+  ]);
 
   return (
     <>
@@ -44,6 +53,29 @@ export default async function DashboardPage() {
           <span className="value num" style={{ color: "var(--warn)" }}>{num(m.expiringSoon)}</span>
           <span className="foot">{num(m.criticalAlarms)} critical alarms · {num(m.openTickets)} open tickets</span>
         </div>
+      </div>
+
+      <div className="grid g4" style={{ marginBottom: 14 }}>
+        <Link href="/leads" className="card kpi" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="label">Leads — open pipeline</span>
+          <span className="value num">{num(leadsFunnel.open)}</span>
+          <span className="foot">{leadsFunnel.conversionRate}% conversion · {leadsFunnel.byStatus.won} won</span>
+        </Link>
+        <Link href="/schedule" className="card kpi" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="label">Schedule — today</span>
+          <span className="value num">{num(scheduleStats.today)}</span>
+          <span className="foot">{scheduleStats.overdue} overdue · {scheduleStats.upcoming} upcoming 7d</span>
+        </Link>
+        <Link href="/helpdesk" className="card kpi" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="label">Tickets — open</span>
+          <span className="value num">{num(m.openTickets)}</span>
+          <span className="foot">{num(m.criticalAlarms)} critical alarms live</span>
+        </Link>
+        <Link href="/inventory" className="card kpi" style={{ textDecoration: "none", color: "inherit" }}>
+          <span className="label">Inventory — low stock</span>
+          <span className="value num" style={{ color: lowStockCount ? "var(--bad)" : undefined }}>{num(lowStockCount)}</span>
+          <span className="foot">SKUs at or below reorder level</span>
+        </Link>
       </div>
 
       <div className="split">

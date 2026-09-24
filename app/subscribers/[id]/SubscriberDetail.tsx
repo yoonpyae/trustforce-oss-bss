@@ -175,7 +175,7 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
                   { small: "OLT", big: detail.olt?.id, em: detail.olt?.name, href: `/odn?focus=${detail.olt?.id}` },
                   { small: "DN", big: detail.dn?.id, em: detail.dn?.zone, href: `/topology?focus=${detail.dn?.id}` },
                   { small: "SN", big: detail.sn?.id, em: `port ${c.snPort}`, href: `/topology?focus=${detail.sn?.id}` },
-                  { small: "ONU", big: detail.onu.id, em: detail.onu.status, href: `/odn?focus=${detail.onu.id}` },
+                  { small: "ONU", big: detail.onu.id, em: detail.onu.status, href: `/odn?focus=${detail.sn?.id}` },
                 ].map((n, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "stretch" }}>
                     {i > 0 && <div className="trace-link" />}
