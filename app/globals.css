@@ -450,3 +450,40 @@ form.inline { display: inline; }
 .link-btn:hover { text-decoration: underline; }
 select.plain, input.plain { background: var(--ink-700); border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 6px 10px; color: inherit; }
 .badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- login ---------- */
+.login-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.login-hero {
+  background:
+    radial-gradient(900px 500px at -10% 110%, var(--cyan-wash), transparent),
+    linear-gradient(160deg, var(--ink-900), var(--ink-800) 65%, var(--ink-700));
+  border-right: 1px solid var(--line-soft);
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.login-hero-points { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; max-width: 420px; }
+.login-hero-points li { position: relative; padding-left: 20px; font-size: 13.5px; color: var(--text-dim); }
+.login-hero-points li::before { content: ""; position: absolute; left: 0; top: 6px; width: 8px; height: 8px; border-radius: 2px; background: var(--cyan); }
+.login-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+.login-demo-divider { display: flex; align-items: center; gap: 10px; color: var(--text-mute); font-size: 11.5px; letter-spacing: .4px; }
+.login-demo-divider::before, .login-demo-divider::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+.demo-account-card {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--r-md);
+  padding: 10px 12px; cursor: pointer; font: inherit; color: inherit;
+}
+.demo-account-card:hover { border-color: var(--cyan); background: var(--cyan-wash); }
+.demo-avatar {
+  flex: none; width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+  font-family: var(--font-head); font-weight: 700; font-size: 12.5px; color: #03202b;
+}
+.demo-account-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.demo-account-text b { font-size: 13px; font-weight: 600; }
+.demo-account-text span { font-size: 11.5px; color: var(--text-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .login-shell { grid-template-columns: 1fr; }
+  .login-hero { display: none; }
+}
