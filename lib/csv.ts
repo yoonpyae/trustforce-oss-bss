@@ -1,0 +1,15 @@
+export function toCsv(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return "";
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const str = v === null || v === undefined ? "" : String(v);
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+  return [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+}
+
+export function csvResponse(rows: Record<string, unknown>[], filename: string) {
+  return new Response(toCsv(rows), {
+    headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${filename}"` },
+  });
+}

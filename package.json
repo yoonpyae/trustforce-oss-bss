@@ -1,12 +1,33 @@
 {
   "name": "trustforce-oss-bss",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Browser-based OSS/BSS demo for TrustForce Myanmar: subscribers, billing, RADIUS/CoA, ODN fibre plant, helpdesk, inventory, analytics.",
+  "description": "OSS/BSS console for TrustForce Myanmar: subscribers, billing, ODN fibre plant, helpdesk, inventory, analytics — backed by Neon Postgres.",
   "scripts": {
-    "start": "npx --yes serve .",
-    "dev": "npx --yes serve ."
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts"
   },
-  "keywords": ["oss", "bss", "isp", "ftth", "odn", "radius", "billing"],
-  "license": "UNLICENSED"
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "drizzle-orm": "^0.45.2",
+    "leaflet": "^1.9.4",
+    "next": "15.5.25",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.14",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
 }

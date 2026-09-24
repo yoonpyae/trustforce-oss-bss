@@ -6,3 +6,7 @@ Thumbs.db
 .idea/
 dist/
 .vercel
+.env*
+.next/
+next-env.d.ts
+drizzle/
