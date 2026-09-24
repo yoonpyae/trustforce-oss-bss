@@ -255,6 +255,17 @@ export const staff = pgTable("staff", {
   email: text("email").notNull(),
   role: text("role").notNull(), // sales | cashier | network_ops | sysadmin | management
   active: boolean("active").notNull().default(true),
+  passwordHash: text("password_hash"), // scrypt:<saltHex>:<hashHex> — null until a password is set
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
+  lastLoginAt: timestamp("last_login_at"),
+});
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(), // opaque random token, also the value stored in the session cookie
+  staffId: text("staff_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  userAgent: text("user_agent"),
 });
 
 export const auditLog = pgTable("audit_log", {

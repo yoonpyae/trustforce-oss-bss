@@ -37,7 +37,34 @@ persisted as if it were a real device reading:**
 - SMS/WhatsApp/payment-gateway delivery — a "send" or "settle" here writes a real campaign/payment row, but
   nothing is actually dispatched to a carrier or bank
 
-There is no real authentication; actions are attributed to a fixed demo actor (see `lib/audit.ts`).
+## Authentication & user management
+
+Real login, backed by the app's own `staff`/`sessions` tables (not a third-party auth provider — the
+Neon project here is provisioned through Vercel's marketplace integration, which isn't reachable from a
+personal Neon account/CLI, so the declarative Neon Auth path couldn't be wired up; this is a straightforward
+self-managed alternative on the same Postgres database):
+
+- Passwords are hashed with Node's `scrypt` (`lib/password.ts`), never stored or logged in plain text.
+- A session is an opaque random token stored server-side (`sessions` table) and set as an httpOnly, `SameSite=lax`
+  cookie — not a JWT, so a session can be revoked server-side at any time (e.g. on logout).
+- `middleware.ts` does a cheap cookie-presence check on every route except `/login`; `app/(app)/layout.tsx` does
+  the real DB-backed session lookup and redirects to `/login` if it doesn't resolve. CSV/KML export routes under
+  `app/api/**` check the session again themselves, since middleware alone doesn't validate it for them.
+- Every audit-log entry (`lib/audit.ts`) now records the real signed-in user instead of a fixed demo actor.
+- **User management** lives on the Settings page: only the `sysadmin` role can create accounts, change another
+  user's role, deactivate/reactivate, or issue a temporary password; every user can change their own password
+  from the same page. A new account is created with `mustChangePassword: true` and is prompted to set its own
+  password at first login.
+
+Seeded demo accounts (see `scripts/seed.ts`) all share the password **`trustforce123`**:
+
+| Email | Role |
+|---|---|
+| hein@trustforcemm.com | System administrator |
+| noc1@trustforcemm.com | Network operations |
+| cashier@trustforcemm.com | Cashier / billing |
+| field1@trustforcemm.com | Network operations |
+| finance@trustforcemm.com | Management / finance |
 
 ---
 

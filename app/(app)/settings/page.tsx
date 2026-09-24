@@ -3,7 +3,10 @@ import * as s from "@/lib/schema";
 import { desc } from "drizzle-orm";
 import { Pill } from "@/components/Pill";
 import { dateTimeStr } from "@/lib/format";
-import { addStaff, toggleStaffActive } from "@/lib/actions/settings";
+import { getSession } from "@/lib/auth-session";
+import { StaffTable } from "./StaffTable";
+import { AddStaffForm } from "./AddStaffForm";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +26,9 @@ const INTEGRATIONS = [
   { name: "SMS / WhatsApp gateway", status: "not connected", note: "Messaging campaigns are logged, not dispatched." },
 ];
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ q?: string; mustChangePassword?: string }> }) {
   const sp = await searchParams;
+  const session = await getSession();
   const [staff, auditRows] = await Promise.all([
     db.select().from(s.staff),
     db.select().from(s.auditLog).orderBy(desc(s.auditLog.timestamp)).limit(120),
@@ -32,6 +36,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const filteredAudit = sp.q
     ? auditRows.filter((r) => [r.actor, r.action, r.objectId, r.detail].join(" ").toLowerCase().includes(sp.q!.toLowerCase()))
     : auditRows;
+  const isSysadmin = session?.role === "sysadmin";
 
   return (
     <>
@@ -60,44 +65,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </p>
       </div>
 
-      <div className="split" style={{ marginBottom: 14 }}>
+      {sp.mustChangePassword && <ChangePasswordForm forced />}
+
+      <div className="split" style={{ marginBottom: 14, marginTop: sp.mustChangePassword ? 14 : 0 }}>
         <div className="card">
-          <header><h3>Staff accounts</h3></header>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
-              <tbody>
-                {staff.map((u) => (
-                  <tr key={u.id}>
-                    <td><b>{u.name}</b><div className="hint">{u.email}</div></td>
-                    <td>{u.role}</td>
-                    <td><Pill status={u.active ? "active" : "disabled"} /></td>
-                    <td>
-                      <form action={toggleStaffActive}>
-                        <input type="hidden" name="id" value={u.id} />
-                        <input type="hidden" name="active" value={String(u.active)} />
-                        <button className="btn sm ghost" type="submit">{u.active ? "Deactivate" : "Reactivate"}</button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <header><h3 style={{ flex: 1 }}>User management</h3><span className="hint">{staff.filter((u) => u.active).length} active of {staff.length}</span></header>
+          {session && <StaffTable staff={staff} myId={session.id} isSysadmin={isSysadmin} />}
+          {!isSysadmin && <p className="hint" style={{ marginTop: 10 }}>Only a system administrator can create accounts, change roles, deactivate staff or reset passwords.</p>}
         </div>
-        <div className="card">
-          <header><h3>Add staff account</h3></header>
-          <form action={addStaff} className="stack">
-            <div className="field"><label>Name</label><input name="name" required /></div>
-            <div className="field"><label>Email</label><input name="email" type="email" required /></div>
-            <div className="field">
-              <label>Role</label>
-              <select name="role" defaultValue="sales">
-                {ROLES.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
-            <button className="btn primary" type="submit">Create account</button>
-          </form>
+        <div className="stack">
+          {isSysadmin && <AddStaffForm />}
+          {!sp.mustChangePassword && <ChangePasswordForm />}
         </div>
       </div>
 

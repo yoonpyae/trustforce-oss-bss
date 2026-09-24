@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
+import { getSession } from "@/lib/auth-session";
 
 function esc(str: string) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
 
 export async function GET() {
+  if (!(await getSession())) return new Response("Unauthorized", { status: 401 });
+
   const [olts, dns, sns, fibers] = await Promise.all([
     db.select().from(s.olts),
     db.select().from(s.distributionNodes),

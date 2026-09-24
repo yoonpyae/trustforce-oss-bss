@@ -7,6 +7,7 @@ import { db } from "../lib/db";
 import { Rand, DAY_MS, REFERENCE_NOW as NOW } from "../lib/rng";
 import * as s from "../lib/schema";
 import { sql } from "drizzle-orm";
+import { hashPassword } from "../lib/password";
 
 const R = new Rand(20260918);
 const pick = <T,>(a: T[]) => R.pick(a);
@@ -87,10 +88,10 @@ async function main() {
 
   console.log("Clearing existing rows…");
   for (const table of [
-    s.auditLog, s.campaigns, s.alarms, s.assets, s.inventoryItems, s.appointments, s.leads,
-    s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes, s.distributionNodes,
-    s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices, s.ipPools,
-    s.bandwidthProfiles, s.staff,
+    s.sessions, s.auditLog, s.campaigns, s.alarms, s.assets, s.inventoryItems, s.appointments,
+    s.leads, s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes,
+    s.distributionNodes, s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices,
+    s.ipPools, s.bandwidthProfiles, s.staff,
   ]) {
     await db.execute(sql`TRUNCATE TABLE ${table} CASCADE`);
   }
@@ -116,12 +117,13 @@ async function main() {
     }))
   );
 
+  const demoPasswordHash = await hashPassword("trustforce123");
   await db.insert(s.staff).values([
-    { id: "U-001", name: "Hein Htet Aung", email: "hein@trustforcemm.com", role: "sysadmin" },
-    { id: "U-002", name: "Ko Zaw Naing", email: "noc1@trustforcemm.com", role: "network_ops" },
-    { id: "U-003", name: "Ma Mya Thein", email: "cashier@trustforcemm.com", role: "cashier" },
-    { id: "U-004", name: "Ko Myo Set", email: "field1@trustforcemm.com", role: "network_ops" },
-    { id: "U-005", name: "Daw Nilar Win", email: "finance@trustforcemm.com", role: "management" },
+    { id: "U-001", name: "Hein Htet Aung", email: "hein@trustforcemm.com", role: "sysadmin", passwordHash: demoPasswordHash },
+    { id: "U-002", name: "Ko Zaw Naing", email: "noc1@trustforcemm.com", role: "network_ops", passwordHash: demoPasswordHash },
+    { id: "U-003", name: "Ma Mya Thein", email: "cashier@trustforcemm.com", role: "cashier", passwordHash: demoPasswordHash },
+    { id: "U-004", name: "Ko Myo Set", email: "field1@trustforcemm.com", role: "network_ops", passwordHash: demoPasswordHash },
+    { id: "U-005", name: "Daw Nilar Win", email: "finance@trustforcemm.com", role: "management", passwordHash: demoPasswordHash },
   ]);
 
   // ---------------- OLT / PON port / feeder fiber / DN / distribution fiber / SN ----------------
