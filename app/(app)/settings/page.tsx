@@ -11,11 +11,11 @@ import { ChangePasswordForm } from "./ChangePasswordForm";
 export const dynamic = "force-dynamic";
 
 const ROLES = [
-  { id: "sales", name: "Sales & CS", modules: "Subscribers, tickets, messaging", danger: "No" },
-  { id: "cashier", name: "Cashier / billing", modules: "Invoices, payments, vouchers, subscriber read", danger: "No" },
-  { id: "network_ops", name: "Network operations", modules: "ODN, alarms, sessions, NAS, tariff read-only", danger: "Control actions" },
+  { id: "sales", name: "Sales & CS", modules: "Leads, subscribers, tickets, schedule, messaging", danger: "No" },
+  { id: "cashier", name: "Cashier / billing", modules: "Invoices, payments, vouchers, subscribers", danger: "No" },
+  { id: "network_ops", name: "Network operations", modules: "ODN plant, topology, live sessions, alarms, tickets, schedule, inventory, tariff read-only", danger: "Control actions" },
   { id: "sysadmin", name: "System administrator", modules: "All modules, settings, integrations, audit", danger: "Yes" },
-  { id: "management", name: "Management / finance", modules: "Dashboards, reports, exports", danger: "No" },
+  { id: "management", name: "Management / finance", modules: "Dashboards, finance, reports, exports", danger: "No" },
 ];
 
 const INTEGRATIONS = [

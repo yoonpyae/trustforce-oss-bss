@@ -5,8 +5,10 @@ import * as s from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
+import { requireRole } from "@/lib/require-role";
 
 export async function saveTariff(formData: FormData) {
+  await requireRole("sysadmin"); // network_ops has tariffs read-only per the permission matrix
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const billingType = String(formData.get("billingType"));

@@ -3,10 +3,13 @@ import * as s from "@/lib/schema";
 import { mmk } from "@/lib/format";
 import { Pill } from "@/components/Pill";
 import { TariffEditor } from "./TariffEditor";
+import { getSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function TariffsPage() {
+  const session = await getSession();
+  const canEdit = session?.role === "sysadmin";
   const [tariffs, bandwidthProfiles, ipPools, nasDevices] = await Promise.all([
     db.select().from(s.tariffs),
     db.select().from(s.bandwidthProfiles),
@@ -23,10 +26,14 @@ export default async function TariffsPage() {
       <div className="page-head">
         <div>
           <h1>Tariffs</h1>
-          <p>Plan catalogue with the pre-publish dependency check: bandwidth profile, IP pool, NAS, validity and expiry behaviour must all resolve before a plan can be saved.</p>
+          <p>
+            Plan catalogue with the pre-publish dependency check: bandwidth profile, IP pool, NAS, validity and expiry
+            behaviour must all resolve before a plan can be saved.
+            {!canEdit && " Your role has read-only access to tariffs."}
+          </p>
         </div>
         <div className="spacer" />
-        <TariffEditor bandwidthProfiles={bandwidthProfiles} ipPools={ipPools} nasDevices={nasDevices} />
+        {canEdit && <TariffEditor bandwidthProfiles={bandwidthProfiles} ipPools={ipPools} nasDevices={nasDevices} />}
       </div>
 
       <div className="card">
@@ -51,7 +58,7 @@ export default async function TariffsPage() {
                     <td>{poolMap.get(t.ipPoolId)?.name ?? "—"}</td>
                     <td>{nasMap.get(t.nasId)?.name ?? "—"}</td>
                     <td><Pill status={t.status} /></td>
-                    <td><TariffEditor tariff={t} bandwidthProfiles={bandwidthProfiles} ipPools={ipPools} nasDevices={nasDevices} compact /></td>
+                    <td>{canEdit && <TariffEditor tariff={t} bandwidthProfiles={bandwidthProfiles} ipPools={ipPools} nasDevices={nasDevices} compact />}</td>
                   </tr>
                 );
               })}

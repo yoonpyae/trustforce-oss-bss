@@ -124,6 +124,7 @@ async function main() {
     { id: "U-003", name: "Ma Mya Thein", email: "cashier@trustforcemm.com", role: "cashier", passwordHash: demoPasswordHash },
     { id: "U-004", name: "Ko Myo Set", email: "field1@trustforcemm.com", role: "network_ops", passwordHash: demoPasswordHash },
     { id: "U-005", name: "Daw Nilar Win", email: "finance@trustforcemm.com", role: "management", passwordHash: demoPasswordHash },
+    { id: "U-006", name: "Su Su Hlaing", email: "sales@trustforcemm.com", role: "sales", passwordHash: demoPasswordHash },
   ]);
 
   // ---------------- OLT / PON port / feeder fiber / DN / distribution fiber / SN ----------------

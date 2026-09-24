@@ -65,6 +65,11 @@ Seeded demo accounts (see `scripts/seed.ts`) all share the password **`trustforc
 | cashier@trustforcemm.com | Cashier / billing |
 | field1@trustforcemm.com | Network operations |
 | finance@trustforcemm.com | Management / finance |
+| sales@trustforcemm.com | Sales & CS |
+
+Each role can only open the modules listed for it in the permission matrix on Settings — enforced in
+`lib/permissions.ts` and `app/(app)/layout.tsx`, not just hidden in the UI. A role that opens a URL outside
+its module list gets an "Access restricted" page instead of the module.
 
 ---
 
