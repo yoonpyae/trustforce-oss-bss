@@ -155,7 +155,6 @@ export function AddCustomerForm({ zones, tariffs, locations }: { zones: string[]
                 </div>
 
                 <h4 className="hint" style={{ textTransform: "uppercase", letterSpacing: ".6px", marginTop: 4 }}>POE device (optional)</h4>
-                <p className="hint" style={{ marginTop: -4 }}>For a secondary POE-powered device on the same drop, e.g. a CCTV camera.</p>
                 <div className="grid g2">
                   <div className="field"><label>POE username</label><input name="poeUsername" /></div>
                   <div className="field"><label>POE password</label><input name="poePassword" type="password" /></div>
