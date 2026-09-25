@@ -327,11 +327,13 @@ tbody tr.clickable { cursor: pointer; }
 .modal footer { border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 8px; }
 
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line-soft); margin-bottom: 14px; flex-wrap: wrap; }
-.tabs button {
+.tabs button, .tabs a {
   background: none; border: 0; padding: 8px 12px; cursor: pointer;
   color: var(--text-dim); border-bottom: 2px solid transparent; font-size: 13px;
+  text-decoration: none; display: inline-block;
 }
-.tabs button.on { color: var(--text); border-bottom-color: var(--cyan); }
+.tabs a:hover { text-decoration: none; color: var(--text); }
+.tabs button.on, .tabs a.on { color: var(--text); border-bottom-color: var(--cyan); }
 
 .toasts { position: fixed; right: 18px; bottom: 18px; z-index: 120; display: grid; gap: 8px; }
 .toast {

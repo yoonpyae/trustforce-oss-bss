@@ -15,7 +15,7 @@ export default async function DashboardPage() {
     getWeakPoints(),
     getLeadsFunnel(),
     getScheduleStats(),
-    db.select().from(s.inventoryItems).then((rows) => rows.filter((r) => r.onHand <= r.reorderLevel).length),
+    db.select().from(s.inventoryItems).then((rows) => rows.filter((r) => r.inStock <= r.reorderLevel).length),
   ]);
 
   return (

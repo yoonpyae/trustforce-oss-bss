@@ -88,7 +88,8 @@ async function main() {
 
   console.log("Clearing existing rows…");
   for (const table of [
-    s.sessions, s.auditLog, s.campaigns, s.alarms, s.assets, s.inventoryItems, s.appointments,
+    s.sessions, s.auditLog, s.campaigns, s.alarms, s.assets, s.supplierInvoices, s.suppliers,
+    s.inventoryItems, s.vendors, s.appointments,
     s.leads, s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes,
     s.distributionNodes, s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices,
     s.ipPools, s.bandwidthProfiles, s.staff,
@@ -363,26 +364,54 @@ async function main() {
   }
   await db.insert(s.tickets).values(ticketRows);
 
-  // ---------------- inventory + assets ----------------
+  // ---------------- vendors ----------------
+  const VENDOR_DEFS = ["Huawei", "ZTE", "MikroTik", "TP-Link", "Ubiquiti", "D-Link", "Ericsson", "Juniper", "Corning", "Other"];
+  const vendorIds: Record<string, string> = {};
+  const vendorRows = VENDOR_DEFS.map((name, i) => {
+    const id = "VND-" + String(i + 1).padStart(2, "0");
+    vendorIds[name] = id;
+    return { id, name };
+  });
+  await db.insert(s.vendors).values(vendorRows);
+
+  // ---------------- products (inventory catalogue, Splynx-style stock-state breakdown) ----------------
   await db.insert(s.inventoryItems).values([
-    { id: "ITM-ONT-01", sku: "ONT-HW-EG8145", name: "Huawei EG8145V5 ONT", onHand: 142, reserved: 18, reorderLevel: 60, unitCostMmk: 42000, bin: "Hlaing warehouse" },
-    { id: "ITM-ONT-02", sku: "ONT-ZTE-F670L", name: "ZTE F670L ONT", onHand: 58, reserved: 6, reorderLevel: 60, unitCostMmk: 46000, bin: "Hlaing warehouse" },
-    { id: "ITM-RTR-01", sku: "RTR-MT-HAPAX", name: "MikroTik hAP ax lite", onHand: 37, reserved: 4, reorderLevel: 25, unitCostMmk: 88000, bin: "Kamayut store" },
-    { id: "ITM-FIB-01", sku: "FIB-DROP-1C", name: "Drop cable 1-core (300m roll)", onHand: 24, reserved: 3, reorderLevel: 12, unitCostMmk: 165000, bin: "Hlaing warehouse" },
-    { id: "ITM-FIB-02", sku: "FIB-ADSS-24C", name: "ADSS 24-core aerial (2km)", onHand: 6, reserved: 2, reorderLevel: 4, unitCostMmk: 2400000, bin: "Insein yard" },
-    { id: "ITM-SPL-01", sku: "SPL-PLC-1X4", name: "PLC splitter 1:4 (SC/APC)", onHand: 44, reserved: 5, reorderLevel: 20, unitCostMmk: 28000, bin: "Hlaing warehouse" },
-    { id: "ITM-SPL-02", sku: "SPL-PLC-1X16", name: "PLC splitter 1:16 (SC/APC)", onHand: 19, reserved: 7, reorderLevel: 20, unitCostMmk: 64000, bin: "Hlaing warehouse" },
-    { id: "ITM-CLS-01", sku: "CLS-DOME-48F", name: "Fibre closure 48F dome", onHand: 31, reserved: 2, reorderLevel: 15, unitCostMmk: 52000, bin: "Insein yard" },
-    { id: "ITM-PAT-01", sku: "PAT-SCAPC-3M", name: "Patch cord SC/APC 3m", onHand: 320, reserved: 40, reorderLevel: 150, unitCostMmk: 3200, bin: "Kamayut store" },
-    { id: "ITM-CON-01", sku: "CON-SCAPC-FAST", name: "Fast connector SC/APC", onHand: 780, reserved: 120, reorderLevel: 400, unitCostMmk: 900, bin: "Hlaing warehouse" },
+    { id: "ITM-ONT-01", sku: "ONT-HW-EG8145", name: "Huawei EG8145V5 ONT", vendorId: vendorIds.Huawei, category: "CPE", sellPriceMmk: 42000, rentPriceMmk: 8000, inStock: 124, internalUsage: 8, rentCount: 12, sold: 340, returned: 14, assigned: 380, damaged: 6, inTransit: 20, reorderLevel: 60, unitCostMmk: 35000, stockLocation: "Hlaing warehouse" },
+    { id: "ITM-ONT-02", sku: "ONT-ZTE-F670L", name: "ZTE F670L ONT", vendorId: vendorIds.ZTE, category: "CPE", sellPriceMmk: 46000, rentPriceMmk: 8500, inStock: 50, internalUsage: 3, rentCount: 5, sold: 120, returned: 8, assigned: 140, damaged: 4, inTransit: 8, reorderLevel: 60, unitCostMmk: 38000, stockLocation: "Hlaing warehouse" },
+    { id: "ITM-RTR-01", sku: "RTR-MT-HAPAX", name: "MikroTik hAP ax lite", vendorId: vendorIds.MikroTik, category: "CPE", sellPriceMmk: 88000, rentPriceMmk: 15000, inStock: 33, internalUsage: 2, rentCount: 6, sold: 60, returned: 3, assigned: 70, damaged: 2, inTransit: 4, reorderLevel: 25, unitCostMmk: 72000, stockLocation: "Kamayut store" },
+    { id: "ITM-FIB-01", sku: "FIB-DROP-1C", name: "Drop cable 1-core (300m roll)", vendorId: vendorIds.Corning, category: "Fibre", sellPriceMmk: 165000, rentPriceMmk: 0, inStock: 22, internalUsage: 1, rentCount: 0, sold: 40, returned: 1, assigned: 0, damaged: 1, inTransit: 2, reorderLevel: 12, unitCostMmk: 140000, stockLocation: "Hlaing warehouse" },
+    { id: "ITM-FIB-02", sku: "FIB-ADSS-24C", name: "ADSS 24-core aerial (2km)", vendorId: vendorIds.Corning, category: "Fibre", sellPriceMmk: 2400000, rentPriceMmk: 0, inStock: 5, internalUsage: 0, rentCount: 0, sold: 3, returned: 0, assigned: 0, damaged: 0, inTransit: 1, reorderLevel: 4, unitCostMmk: 2100000, stockLocation: "Insein yard" },
+    { id: "ITM-SPL-01", sku: "SPL-PLC-1X4", name: "PLC splitter 1:4 (SC/APC)", vendorId: vendorIds.Other, category: "Passive", sellPriceMmk: 28000, rentPriceMmk: 0, inStock: 40, internalUsage: 4, rentCount: 0, sold: 60, returned: 2, assigned: 16, damaged: 1, inTransit: 4, reorderLevel: 20, unitCostMmk: 22000, stockLocation: "Hlaing warehouse" },
+    { id: "ITM-SPL-02", sku: "SPL-PLC-1X16", name: "PLC splitter 1:16 (SC/APC)", vendorId: vendorIds.Other, category: "Passive", sellPriceMmk: 64000, rentPriceMmk: 0, inStock: 17, internalUsage: 2, rentCount: 0, sold: 47, returned: 3, assigned: 47, damaged: 2, inTransit: 2, reorderLevel: 20, unitCostMmk: 52000, stockLocation: "Hlaing warehouse" },
+    { id: "ITM-CLS-01", sku: "CLS-DOME-48F", name: "Fibre closure 48F dome", vendorId: vendorIds.Other, category: "Passive", sellPriceMmk: 52000, rentPriceMmk: 0, inStock: 29, internalUsage: 2, rentCount: 0, sold: 16, returned: 1, assigned: 0, damaged: 0, inTransit: 2, reorderLevel: 15, unitCostMmk: 44000, stockLocation: "Insein yard" },
+    { id: "ITM-PAT-01", sku: "PAT-SCAPC-3M", name: "Patch cord SC/APC 3m", vendorId: vendorIds.Other, category: "Consumable", sellPriceMmk: 3200, rentPriceMmk: 0, inStock: 280, internalUsage: 40, rentCount: 0, sold: 900, returned: 5, assigned: 0, damaged: 0, inTransit: 40, reorderLevel: 150, unitCostMmk: 2400, stockLocation: "Kamayut store" },
+    { id: "ITM-CON-01", sku: "CON-SCAPC-FAST", name: "Fast connector SC/APC", vendorId: vendorIds.Other, category: "Consumable", sellPriceMmk: 900, rentPriceMmk: 0, inStock: 660, internalUsage: 120, rentCount: 0, sold: 2100, returned: 12, assigned: 0, damaged: 0, inTransit: 120, reorderLevel: 400, unitCostMmk: 650, stockLocation: "Hlaing warehouse" },
   ]);
 
+  // ---------------- items (serialized units, bound to installed ONUs) ----------------
+  const PRODUCT_BY_MODEL: Record<string, string> = { "Huawei EG8145V5": "ITM-ONT-01", "ZTE F670L": "ITM-ONT-02" };
   const assetRows = onuRows.slice(0, 400).map((o) => ({
     id: "AST-" + (o.id as string).replace("ONU-", ""), serial: o.serial as string, mac: o.mac as string,
-    model: `${o.vendor} ${o.model}`, boundCustomerId: o.customerId as string, issuedBy: "field.myo",
+    model: `${o.vendor} ${o.model}`, productId: PRODUCT_BY_MODEL[`${o.vendor} ${o.model}`] ?? null,
+    status: "assigned", boundCustomerId: o.customerId as string, issuedBy: "field.myo",
     issuedAt: o.installDate as Date,
   }));
   for (let i = 0; i < assetRows.length; i += 200) await db.insert(s.assets).values(assetRows.slice(i, i + 200));
+
+  // ---------------- suppliers + supplier invoices ----------------
+  await db.insert(s.suppliers).values([
+    { id: "SUP-01", name: "Myanmar Net Supplies Co., Ltd.", contactName: "U Kyaw Zin Latt", phone: "09-450-112233", email: "sales@mns.com.mm", address: "Bayint Naung Road, Yangon" },
+    { id: "SUP-02", name: "FiberOne Distribution", contactName: "Daw Hla Hla Win", phone: "09-780-556677", email: "orders@fiberone.mm", address: "Pyay Road, Yangon" },
+    { id: "SUP-03", name: "TeleGear Trading", contactName: "Ko Zaw Lin Oo", phone: "09-260-998877", email: "procurement@telegear.mm", address: "Mandalay-Yangon Highway, Bago" },
+    { id: "SUP-04", name: "Golden Link Hardware", contactName: "Daw Aye Aye Mar", phone: "09-970-334455", email: "info@goldenlink.mm", address: "Insein Road, Yangon" },
+  ]);
+  await db.insert(s.supplierInvoices).values([
+    { id: "SINV-001", supplierId: "SUP-01", invoiceNumber: "MNS-2026-0885", issuedDate: new Date(NOW - 25 * DAY_MS), amountMmk: 12600000, status: "paid", note: "60x Huawei EG8145V5 ONT restock" },
+    { id: "SINV-002", supplierId: "SUP-02", invoiceNumber: "FO-11024", issuedDate: new Date(NOW - 10 * DAY_MS), amountMmk: 4800000, status: "paid", note: "2x ADSS 24-core aerial 2km drum" },
+    { id: "SINV-003", supplierId: "SUP-01", invoiceNumber: "MNS-2026-0931", issuedDate: new Date(NOW - 4 * DAY_MS), amountMmk: 3080000, status: "pending", note: "20x MikroTik hAP ax lite" },
+    { id: "SINV-004", supplierId: "SUP-03", invoiceNumber: "TG-4471", issuedDate: new Date(NOW - 40 * DAY_MS), amountMmk: 960000, status: "paid", note: "Splitter restock 1:4 + 1:16" },
+    { id: "SINV-005", supplierId: "SUP-04", invoiceNumber: "GLH-2201", issuedDate: new Date(NOW - 2 * DAY_MS), amountMmk: 1440000, status: "pending", note: "Patch cords & fast connectors bulk order" },
+  ]);
 
   // ---------------- alarms ----------------
   const ALARM_KINDS = [

@@ -215,25 +215,66 @@ export const tickets = pgTable("tickets", {
   resolvedAt: timestamp("resolved_at"),
 });
 
+export const vendors = pgTable("vendors", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
+// "Products" in the inventory UI — an aggregate SKU catalog entry with a
+// stock-state breakdown (Splynx's inventory model), not an individual
+// serialized unit. Individual units are `assets` ("Items" in the UI).
 export const inventoryItems = pgTable("inventory_items", {
   id: text("id").primaryKey(),
   sku: text("sku").notNull(),
   name: text("name").notNull(),
-  onHand: integer("on_hand").notNull().default(0),
-  reserved: integer("reserved").notNull().default(0),
+  vendorId: text("vendor_id"),
+  category: text("category"),
+  sellPriceMmk: integer("sell_price_mmk").notNull().default(0),
+  rentPriceMmk: integer("rent_price_mmk").notNull().default(0),
+  inStock: integer("in_stock").notNull().default(0),
+  internalUsage: integer("internal_usage").notNull().default(0),
+  rentCount: integer("rent_count").notNull().default(0),
+  sold: integer("sold").notNull().default(0),
+  returned: integer("returned").notNull().default(0),
+  assigned: integer("assigned").notNull().default(0),
+  damaged: integer("damaged").notNull().default(0),
+  inTransit: integer("in_transit").notNull().default(0),
   reorderLevel: integer("reorder_level").notNull().default(10),
   unitCostMmk: integer("unit_cost_mmk").notNull().default(0),
-  bin: text("bin"),
+  stockLocation: text("stock_location"),
 });
 
+// "Items" in the inventory UI — one row per physical serialized unit,
+// optionally bound to a customer (an installed ONU/router, for example).
 export const assets = pgTable("assets", {
   id: text("id").primaryKey(),
   serial: text("serial").notNull(),
   mac: text("mac"),
   model: text("model").notNull(),
+  productId: text("product_id"),
+  status: text("status").notNull().default("assigned"), // in_stock | assigned | damaged | returned
   boundCustomerId: text("bound_customer_id"),
   issuedBy: text("issued_by"),
   issuedAt: timestamp("issued_at").notNull().defaultNow(),
+});
+
+export const suppliers = pgTable("suppliers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+});
+
+export const supplierInvoices = pgTable("supplier_invoices", {
+  id: text("id").primaryKey(),
+  supplierId: text("supplier_id").notNull(),
+  invoiceNumber: text("invoice_number").notNull(),
+  issuedDate: timestamp("issued_date").notNull(),
+  amountMmk: integer("amount_mmk").notNull(),
+  status: text("status").notNull().default("pending"), // pending | paid
+  note: text("note"),
 });
 
 export const alarms = pgTable("alarms", {
