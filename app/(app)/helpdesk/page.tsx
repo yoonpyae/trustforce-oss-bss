@@ -5,6 +5,7 @@ import { Pill } from "@/components/Pill";
 import { relTime } from "@/lib/format";
 import { moveTicket } from "@/lib/actions/tickets";
 import { getMttrByTechnician } from "@/lib/queries/reports";
+import { NewTicketForm } from "./NewTicketForm";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ export default async function HelpdeskPage() {
           <h1>Ticket dashboard</h1>
           <p>{tickets.length} tickets. Kanban lifecycle Open → Assigned → In-progress → Resolved, each move writes a real row and audit entry.</p>
         </div>
+        <div className="spacer" />
+        <NewTicketForm customers={customers} />
       </div>
 
       <div className="grid g4" style={{ marginBottom: 14 }}>

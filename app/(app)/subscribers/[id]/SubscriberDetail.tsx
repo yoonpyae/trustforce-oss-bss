@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { recharge, addBalance, grantGrace, setStatus, changePlan } from "@/lib/actions/customers";
+import { createTicket } from "@/lib/actions/tickets";
 import { mmk, dateStr, dateTimeStr } from "@/lib/format";
 import { Pill } from "@/components/Pill";
 import type { getCustomerDetail } from "@/lib/queries/customers";
@@ -13,6 +14,7 @@ const TABS = ["Overview", "Billing", "Network & optical", "Support"] as const;
 
 export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs: Tariff[] }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [ticketError, setTicketError] = useState<string | null>(null);
   const c = detail.customer;
 
   return (
@@ -209,24 +211,62 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
       )}
 
       {tab === "Support" && (
-        <div className="card">
-          <header><h3>Tickets</h3></header>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>ID</th><th>Category</th><th>Priority</th><th>Status</th><th>Opened</th></tr></thead>
-              <tbody>
-                {detail.tickets.map((t) => (
-                  <tr key={t.id}>
-                    <td className="num">{t.id}</td>
-                    <td>{t.category}</td>
-                    <td><Pill status={t.priority} /></td>
-                    <td><Pill status={t.status} /></td>
-                    <td>{dateTimeStr(t.openedAt)}</td>
-                  </tr>
-                ))}
-                {detail.tickets.length === 0 && <tr><td colSpan={5} className="empty">No support tickets.</td></tr>}
-              </tbody>
-            </table>
+        <div className="split">
+          <div className="card">
+            <header><h3>Tickets</h3></header>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Category</th><th>Priority</th><th>Status</th><th>Opened</th></tr></thead>
+                <tbody>
+                  {detail.tickets.map((t) => (
+                    <tr key={t.id}>
+                      <td className="num">{t.id}</td>
+                      <td>{t.category}</td>
+                      <td><Pill status={t.priority} /></td>
+                      <td><Pill status={t.status} /></td>
+                      <td>{dateTimeStr(t.openedAt)}</td>
+                    </tr>
+                  ))}
+                  {detail.tickets.length === 0 && <tr><td colSpan={5} className="empty">No support tickets.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <header><h3>Raise a ticket</h3></header>
+            <form
+              className="stack"
+              action={async (fd) => {
+                setTicketError(null);
+                try {
+                  await createTicket(fd);
+                } catch (e) {
+                  setTicketError(e instanceof Error ? e.message : "Could not create ticket.");
+                }
+              }}
+            >
+              <input type="hidden" name="customerId" value={c.id} />
+              {ticketError && <p className="hint" style={{ color: "var(--bad)" }}>{ticketError}</p>}
+              <div className="field">
+                <label>Category</label>
+                <select name="category" defaultValue="Fault">
+                  {["Fault", "Performance", "Install", "Move", "Config", "Billing", "Hardware"].map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Priority</label>
+                <select name="priority" defaultValue="normal">
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div className="field"><label>Notes</label><textarea name="notes" placeholder="What the customer reported…" /></div>
+              <button className="btn primary" type="submit">Create ticket</button>
+            </form>
           </div>
         </div>
       )}
