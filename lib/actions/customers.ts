@@ -166,6 +166,10 @@ export async function addCustomer(formData: FormData) {
   const portalPasswordInput = String(formData.get("portalPassword") || "").trim();
   const portalPassword = portalPasswordInput || randomBytes(6).toString("base64url");
 
+  const ALLOWED_STATUSES = ["active", "grace", "suspended", "disabled"];
+  const statusInput = String(formData.get("status") || "active");
+  const status = ALLOWED_STATUSES.includes(statusInput) ? statusInput : "active";
+
   const port = await findFreeSnPort();
   if (!port) throw new Error("No free splitter port available network-wide");
   const [sn] = await db.select().from(s.splitterNodes).where(eq(s.splitterNodes.id, port.snId)).limit(1);
@@ -173,13 +177,19 @@ export async function addCustomer(formData: FormData) {
   const { custId, onuId } = await nextCustomerId();
   const now = new Date();
   const expiry = new Date(now.getTime() + tariff.validityDays * DAY_MS);
-  const username = custId.toLowerCase().replace("cus-", "sub");
+
+  const usernameInput = String(formData.get("username") || "").trim().toLowerCase();
+  if (usernameInput) {
+    const [taken] = await db.select({ id: s.customers.id }).from(s.customers).where(eq(s.customers.username, usernameInput)).limit(1);
+    if (taken) throw new Error(`Portal login "${usernameInput}" is already in use.`);
+  }
+  const username = usernameInput || custId.toLowerCase().replace("cus-", "sub");
 
   await db.insert(s.customers).values({
     id: custId, username, portalPasswordHash: await hashPassword(portalPassword),
     fullName, email, billingEmail, phone, address, street, city, zipCode, stateProvince,
     accountType, zone, lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
-    status: "active", customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
+    status, customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: username,
     dateOfBirth, nationalId, contractId, contractEndDate, bankAccount, managementIp, useOwnRouter, referredBy,
   });

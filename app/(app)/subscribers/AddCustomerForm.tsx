@@ -46,13 +46,30 @@ export function AddCustomerForm({ zones, tariffs }: { zones: string[]; tariffs: 
                 <h4 className="hint" style={{ textTransform: "uppercase", letterSpacing: ".6px" }}>Portal access</h4>
                 <div className="grid g2">
                   <div className="field">
-                    <label>Portal password</label>
-                    <div className="row">
-                      <input className="grow" name="portalPassword" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Auto-generated if left blank" />
-                      <button type="button" className="btn sm ghost" onClick={() => setShowPassword((v) => !v)} title="Show/hide">{showPassword ? "◒" : "◓"}</button>
-                      <button type="button" className="btn sm ghost" onClick={() => setPassword(generatePassword())} title="Generate">⟳</button>
+                    <label>Portal login</label>
+                    <div className="icon-input-group">
+                      <input name="username" placeholder="Auto-assigned from customer ID" />
+                      <button type="button" title="Auto-assigned" disabled>⚿</button>
                     </div>
-                    <span className="hint">Username is assigned automatically from the customer ID.</span>
+                  </div>
+                  <div className="field">
+                    <label>Portal password</label>
+                    <div className="icon-input-group">
+                      <button type="button" onClick={() => setShowPassword((v) => !v)} title="Show/hide">{showPassword ? "◒" : "◓"}</button>
+                      <input name="portalPassword" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Auto-generated if left blank" />
+                      <button type="button" onClick={() => setPassword(generatePassword())} title="Generate">⟳</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid g2">
+                  <div className="field">
+                    <label>Status</label>
+                    <select name="status" defaultValue="active">
+                      <option value="active">Active</option>
+                      <option value="grace">Grace</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="disabled">Disabled</option>
+                    </select>
                   </div>
                   <div className="field">
                     <label>Custom status</label>

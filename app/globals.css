@@ -489,3 +489,17 @@ select.plain, input.plain { background: var(--ink-700); border: 1px solid var(--
   .login-shell { grid-template-columns: 1fr; }
   .login-hero { display: none; }
 }
+
+/* ---------- input + attached icon button(s), e.g. "Portal login" / "Portal password" ---------- */
+.icon-input-group { display: flex; align-items: stretch; }
+.icon-input-group > input { flex: 1; min-width: 0; border-radius: 0; }
+.icon-input-group > input:not(:first-child) { border-left: none; }
+.icon-input-group > button {
+  flex: none; width: 36px; display: flex; align-items: center; justify-content: center;
+  background: var(--ink-700); border: 1px solid var(--line-soft); color: var(--text-dim);
+  cursor: pointer; border-radius: 0; padding: 0;
+}
+.icon-input-group > button + button { border-left: none; }
+.icon-input-group > button:hover { color: var(--text); background: var(--line); }
+.icon-input-group > *:first-child { border-top-left-radius: var(--r-sm); border-bottom-left-radius: var(--r-sm); }
+.icon-input-group > *:last-child { border-top-right-radius: var(--r-sm); border-bottom-right-radius: var(--r-sm); }
