@@ -245,16 +245,32 @@ async function main() {
         : status === "grace" ? NOW - int(1, 4) * DAY_MS
         : NOW + int(1, 29) * DAY_MS;
 
+      const email = (isBiz ? name.toLowerCase().replace(/[^a-z]+/g, ".") : "sub" + cusSeq) + "@example.mm";
+      const streetNo = int(1, 240), streetNth = int(1, 12);
+      const isStaticPool = tariff.pool === "POOL-STATIC";
+      const dob = !isBiz && chance(0.6) ? new Date(NOW - int(18, 65) * 365 * DAY_MS) : null;
+      const nationalId = chance(0.5) ? (isBiz ? "YGN-BIZ-" + String(10000 + cusSeq) : "12/OoKaTa(N)" + String(100000 + cusSeq)) : null;
+      const referralPool = ["Facebook ad", "Friend referral", "Shop walk-in", "Existing customer referral", null, null];
+
       customerRows.push({
         id: custId, username: (isBiz ? "biz" : "res") + String(cusSeq).padStart(4, "0"),
-        fullName: name, email: (isBiz ? name.toLowerCase().replace(/[^a-z]+/g, ".") : "sub" + cusSeq) + "@example.mm",
-        phone: "09" + int(700000000, 799999999), address: `No.${int(1, 240)}, ${int(1, 12)} Street, ${meta.zone}`,
+        fullName: name, email, billingEmail: email,
+        phone: "09" + int(700000000, 799999999),
+        address: `No.${streetNo}, ${streetNth} Street, ${meta.zone}`,
+        street: `No.${streetNo}, ${streetNth} Street`, city: "Yangon", zipCode: "11" + String(int(10, 99)), stateProvince: "Yangon Region",
         accountType: isBiz ? "business" : "personal", zone: meta.zone,
         lat: (sn.lat as number) + (R.float() - 0.5) * 0.006, lng: (sn.lng as number) + (R.float() - 0.5) * 0.006,
-        status, installedDate: new Date(installed), tariffId: tariff.id, expiryDate: new Date(expiry),
+        status, customStatus: isBiz && chance(0.2) ? "vip" : "customer",
+        installedDate: new Date(installed), tariffId: tariff.id, expiryDate: new Date(expiry),
         balanceMmk: chance(0.3) ? int(0, 60) * 1000 : 0,
         snId: sn.id as string, snPort: p,
         pppoeUsername: (isBiz ? "biz" : "res") + String(cusSeq).padStart(4, "0"),
+        dateOfBirth: dob, nationalId,
+        contractId: isBiz ? "CTR-" + String(5000 + cusSeq) : null,
+        contractEndDate: isBiz ? new Date(installed + 365 * DAY_MS) : null,
+        managementIp: isStaticPool ? "103.86.14." + (2 + (cusSeq % 250)) : null,
+        useOwnRouter: chance(isBiz ? 0.05 : 0.15),
+        referredBy: pick(referralPool),
       });
 
       onuRows.push({

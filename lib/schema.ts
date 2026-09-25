@@ -147,15 +147,22 @@ export const tariffs = pgTable("tariffs", {
 export const customers = pgTable("customers", {
   id: text("id").primaryKey(),
   username: text("username").notNull(),
+  portalPasswordHash: text("portal_password_hash"), // for a future customer self-service portal
   fullName: text("full_name").notNull(),
   email: text("email"),
+  billingEmail: text("billing_email"),
   phone: text("phone").notNull(),
   address: text("address").notNull(),
+  street: text("street"),
+  city: text("city"),
+  zipCode: text("zip_code"),
+  stateProvince: text("state_province"),
   accountType: text("account_type").notNull().default("personal"), // personal | business
   zone: text("zone").notNull(),
   lat: doublePrecision("lat").notNull(),
   lng: doublePrecision("lng").notNull(),
   status: text("status").notNull().default("active"), // active | grace | suspended | expired | banned | disabled
+  customStatus: text("custom_status").notNull().default("customer"), // free-form tag, independent of lifecycle status
   installedDate: timestamp("installed_date").notNull(),
   tariffId: text("tariff_id"),
   expiryDate: timestamp("expiry_date"),
@@ -163,6 +170,14 @@ export const customers = pgTable("customers", {
   snId: text("sn_id"),
   snPort: integer("sn_port"),
   pppoeUsername: text("pppoe_username"),
+  dateOfBirth: timestamp("date_of_birth"),
+  nationalId: text("national_id"), // NRC / passport / business registration number
+  contractId: text("contract_id"),
+  contractEndDate: timestamp("contract_end_date"),
+  bankAccount: text("bank_account"),
+  managementIp: text("management_ip"), // static/management IP, for business static-IP plans
+  useOwnRouter: boolean("use_own_router").notNull().default(false),
+  referredBy: text("referred_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -6,6 +6,8 @@ import { eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 import { findFreeSnPort, nextCustomerId } from "@/lib/queries/customers";
+import { hashPassword } from "@/lib/password";
+import { randomBytes } from "crypto";
 
 const DAY_MS = 86400000;
 
@@ -129,14 +131,40 @@ export async function changePlan(formData: FormData) {
 export async function addCustomer(formData: FormData) {
   const fullName = String(formData.get("fullName") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
-  const address = String(formData.get("address") || "").trim();
   const zone = String(formData.get("zone") || "").trim();
   const accountType = String(formData.get("accountType") || "personal");
   const tariffId = String(formData.get("tariffId") || "");
-  if (!fullName || !phone || !zone || !tariffId) return;
+  if (!fullName || !phone || !zone || !tariffId) throw new Error("Full name, phone, zone and plan are required.");
 
   const [tariff] = await db.select().from(s.tariffs).where(eq(s.tariffs.id, tariffId)).limit(1);
-  if (!tariff) return;
+  if (!tariff) throw new Error("Selected plan was not found.");
+
+  // Contact & address
+  const email = String(formData.get("email") || "").trim() || null;
+  const billingEmail = String(formData.get("billingEmail") || "").trim() || email;
+  const street = String(formData.get("street") || "").trim() || null;
+  const city = String(formData.get("city") || "").trim() || "Yangon";
+  const zipCode = String(formData.get("zipCode") || "").trim() || null;
+  const stateProvince = String(formData.get("stateProvince") || "").trim() || null;
+  const addressInput = String(formData.get("address") || "").trim();
+  const address = addressInput || [street, city].filter(Boolean).join(", ") || `${zone}, Yangon`;
+
+  // Identity & account
+  const dobRaw = String(formData.get("dateOfBirth") || "");
+  const dateOfBirth = dobRaw ? new Date(dobRaw) : null;
+  const nationalId = String(formData.get("nationalId") || "").trim() || null;
+  const contractId = String(formData.get("contractId") || "").trim() || null;
+  const contractEndRaw = String(formData.get("contractEndDate") || "");
+  const contractEndDate = contractEndRaw ? new Date(contractEndRaw) : null;
+  const customStatus = String(formData.get("customStatus") || "customer").trim() || "customer";
+  const bankAccount = String(formData.get("bankAccount") || "").trim() || null;
+  const managementIp = String(formData.get("managementIp") || "").trim() || null;
+  const useOwnRouter = formData.get("useOwnRouter") === "on";
+  const referredBy = String(formData.get("referredBy") || "").trim() || null;
+
+  // Portal login: admin-set or auto-generated, always stored hashed (no client portal exists yet — see README)
+  const portalPasswordInput = String(formData.get("portalPassword") || "").trim();
+  const portalPassword = portalPasswordInput || randomBytes(6).toString("base64url");
 
   const port = await findFreeSnPort();
   if (!port) throw new Error("No free splitter port available network-wide");
@@ -145,12 +173,15 @@ export async function addCustomer(formData: FormData) {
   const { custId, onuId } = await nextCustomerId();
   const now = new Date();
   const expiry = new Date(now.getTime() + tariff.validityDays * DAY_MS);
+  const username = custId.toLowerCase().replace("cus-", "sub");
 
   await db.insert(s.customers).values({
-    id: custId, username: custId.toLowerCase().replace("cus-", "sub"), fullName, phone, address: address || `${zone}, Yangon`,
+    id: custId, username, portalPasswordHash: await hashPassword(portalPassword),
+    fullName, email, billingEmail, phone, address, street, city, zipCode, stateProvince,
     accountType, zone, lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
-    status: "active", installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
-    snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase().replace("cus-", "sub"),
+    status: "active", customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
+    snId: port.snId, snPort: port.port, pppoeUsername: username,
+    dateOfBirth, nationalId, contractId, contractEndDate, bankAccount, managementIp, useOwnRouter, referredBy,
   });
   await db.insert(s.onus).values({
     id: onuId, serial: "NEWONU" + custId.replace("CUS-", ""), mac: "48:3F:DA:00:00:00",

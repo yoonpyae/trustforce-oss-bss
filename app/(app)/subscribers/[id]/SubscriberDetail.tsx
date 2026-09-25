@@ -34,12 +34,28 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
                 <dt>Customer ID</dt><dd className="num">{c.id}</dd>
                 <dt>Username</dt><dd className="num">{c.username}</dd>
                 <dt>Account type</dt><dd>{c.accountType}</dd>
-                <dt>Address</dt><dd>{c.address}</dd>
+                <dt>Custom status</dt><dd>{c.customStatus}</dd>
+                <dt>Email</dt><dd>{c.email ?? "—"}</dd>
+                <dt>Billing email</dt><dd>{c.billingEmail ?? "—"}</dd>
+                <dt>Address</dt><dd>{c.address}{c.zipCode ? `, ${c.zipCode}` : ""}{c.stateProvince ? `, ${c.stateProvince}` : ""}</dd>
                 <dt>Zone</dt><dd>{c.zone}</dd>
                 <dt>Installed</dt><dd>{dateStr(c.installedDate)}</dd>
                 <dt>Status</dt><dd><Pill status={c.status} /></dd>
                 <dt>Expiry</dt><dd>{dateStr(c.expiryDate)}</dd>
                 <dt>Wallet balance</dt><dd className="num">{mmk(c.balanceMmk)}</dd>
+              </dl>
+            </div>
+            <div className="card">
+              <header><h3>Personal &amp; contract</h3></header>
+              <dl className="defn">
+                <dt>Date of birth</dt><dd>{c.dateOfBirth ? dateStr(c.dateOfBirth) : "—"}</dd>
+                <dt>Identification</dt><dd className="num">{c.nationalId ?? "—"}</dd>
+                <dt>Bank account</dt><dd className="num">{c.bankAccount ?? "—"}</dd>
+                <dt>Contract ID</dt><dd className="num">{c.contractId ?? "—"}</dd>
+                <dt>Contract end</dt><dd>{c.contractEndDate ? dateStr(c.contractEndDate) : "—"}</dd>
+                <dt>Management IP</dt><dd className="num">{c.managementIp ?? "—"}</dd>
+                <dt>Own router</dt><dd>{c.useOwnRouter ? "Yes" : "No — TrustForce ONU issued"}</dd>
+                <dt>Referred by</dt><dd>{c.referredBy ?? "—"}</dd>
               </dl>
             </div>
             <div className="card">
