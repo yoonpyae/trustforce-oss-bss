@@ -49,8 +49,8 @@ export function AddCustomerForm({ zones, tariffs }: { zones: string[]; tariffs: 
                     <label>Portal password</label>
                     <div className="row">
                       <input className="grow" name="portalPassword" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Auto-generated if left blank" />
-                      <button type="button" className="btn sm ghost" onClick={() => setShowPassword((v) => !v)} title="Show/hide">👁</button>
-                      <button type="button" className="btn sm ghost" onClick={() => setPassword(generatePassword())} title="Generate">✨</button>
+                      <button type="button" className="btn sm ghost" onClick={() => setShowPassword((v) => !v)} title="Show/hide">{showPassword ? "◒" : "◓"}</button>
+                      <button type="button" className="btn sm ghost" onClick={() => setPassword(generatePassword())} title="Generate">⟳</button>
                     </div>
                     <span className="hint">Username is assigned automatically from the customer ID.</span>
                   </div>
