@@ -9,6 +9,7 @@ type Nas = { id: string; name: string };
 type Tariff = {
   id: string; name: string; status: string; billingType: string; accountType: string;
   priceMmk: number; validityDays: number; bandwidthProfileId: string; ipPoolId: string; nasId: string; expiredBehavior: string;
+  vlan: number | null;
 };
 
 export function TariffEditor({
@@ -26,7 +27,7 @@ export function TariffEditor({
         <div className="scrim" onClick={() => setOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <header>
-              <h3 style={{ flex: 1 }}>{tariff ? `Edit ${tariff.name}` : "New tariff"}</h3>
+              <h3 style={{ flex: 1 }}>{tariff ? `Edit ${tariff.name}` : "New plan"}</h3>
               <button className="btn sm ghost" onClick={() => setOpen(false)}>✕</button>
             </header>
             <form
@@ -96,7 +97,11 @@ export function TariffEditor({
                     </select>
                   </div>
                 </div>
-                <div className="grid g2">
+                <div className="grid g3">
+                  <div className="field">
+                    <label>VLAN</label>
+                    <input name="vlan" type="number" min={1} max={4094} defaultValue={tariff?.vlan ?? ""} placeholder="Optional" />
+                  </div>
                   <div className="field">
                     <label>Expiry behaviour</label>
                     <select name="expiredBehavior" defaultValue={tariff?.expiredBehavior ?? "suspend"}>

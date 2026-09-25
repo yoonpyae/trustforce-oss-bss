@@ -9,7 +9,7 @@ export const NAV: NavGroup[] = [
       { href: "/leads", label: "Leads", icon: "✦" },
       { href: "/subscribers", label: "Subscribers", icon: "☰" },
       { href: "/billing", label: "Billing & finance", icon: "฿" },
-      { href: "/tariffs", label: "Tariffs", icon: "▤" },
+      { href: "/tariffs", label: "Plan", icon: "▤" },
     ],
   },
   {

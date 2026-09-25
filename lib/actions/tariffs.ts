@@ -20,6 +20,8 @@ export async function saveTariff(formData: FormData) {
   const nasId = String(formData.get("nasId"));
   const expiredBehavior = String(formData.get("expiredBehavior") || "suspend");
   const status = String(formData.get("status") || "active");
+  const vlanRaw = String(formData.get("vlan") || "").trim();
+  const vlan = vlanRaw ? parseInt(vlanRaw, 10) : null;
 
   // Pre-publish dependency check (NationNet review §5.4): bandwidth profile,
   // IP pool, NAS and expiry behaviour must all be resolvable before a plan goes live.
@@ -28,14 +30,14 @@ export async function saveTariff(formData: FormData) {
   }
 
   const newId = id || "TP-" + Math.floor(100 + Math.random() * 900);
-  const values = { id: newId, name, status, billingType, accountType, priceMmk, validityDays, bandwidthProfileId, ipPoolId, nasId, expiredBehavior };
+  const values = { id: newId, name, status, billingType, accountType, priceMmk, validityDays, bandwidthProfileId, ipPoolId, nasId, expiredBehavior, vlan };
 
   if (id) {
     await db.update(s.tariffs).set(values).where(eq(s.tariffs.id, id));
-    await logAudit("Tariff updated", "tariff", id, `${name}, ${priceMmk.toLocaleString()} MMK / ${validityDays}d`);
+    await logAudit("Plan updated", "plan", id, `${name}, ${priceMmk.toLocaleString()} MMK / ${validityDays}d`);
   } else {
     await db.insert(s.tariffs).values(values);
-    await logAudit("Tariff created", "tariff", newId, `${name}, ${priceMmk.toLocaleString()} MMK / ${validityDays}d`);
+    await logAudit("Plan created", "plan", newId, `${name}, ${priceMmk.toLocaleString()} MMK / ${validityDays}d`);
   }
 
   revalidatePath("/tariffs");

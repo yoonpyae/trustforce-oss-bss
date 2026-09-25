@@ -38,6 +38,7 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
                 <dt>Email</dt><dd>{c.email ?? "—"}</dd>
                 <dt>Billing email</dt><dd>{c.billingEmail ?? "—"}</dd>
                 <dt>Address</dt><dd>{c.address}{c.zipCode ? `, ${c.zipCode}` : ""}{c.stateProvince ? `, ${c.stateProvince}` : ""}</dd>
+                <dt>Location</dt><dd>{detail.location ? `${detail.location.name} (${detail.location.code})` : "—"}</dd>
                 <dt>Zone</dt><dd>{c.zone}</dd>
                 <dt>Installed</dt><dd>{dateStr(c.installedDate)}</dd>
                 <dt>Status</dt><dd><Pill status={c.status} /></dd>
@@ -220,6 +221,17 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
                 <dt>RX optical</dt><dd className="num">{detail.onu.rxDbmBase.toFixed(1)} dBm</dd>
                 <dt>TX optical</dt><dd className="num">{detail.onu.txDbmBase.toFixed(1)} dBm</dd>
                 <dt>Last reboot</dt><dd>{dateTimeStr(detail.onu.lastReboot)}</dd>
+                <dt>VLAN</dt><dd className="num">{c.vlan ?? "—"}</dd>
+                <dt>Own router</dt><dd>{c.useOwnRouter ? "Yes" : "No"}</dd>
+              </dl>
+            </div>
+          )}
+          {(c.poeUsername || c.poePassword) && (
+            <div className="card">
+              <header><h3>POE device</h3></header>
+              <dl className="defn">
+                <dt>POE username</dt><dd className="num">{c.poeUsername ?? "—"}</dd>
+                <dt>POE password</dt><dd className="num">{c.poePassword ?? "—"}</dd>
               </dl>
             </div>
           )}

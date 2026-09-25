@@ -5,7 +5,8 @@ import * as s from "@/lib/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
-import { findFreeSnPort, nextCustomerId } from "@/lib/queries/customers";
+import { findFreeSnPort, nextOnuId, nextLocationCustomerId } from "@/lib/queries/customers";
+import { getSystemSettings } from "@/lib/queries/settings";
 
 const DAY_MS = 86400000;
 
@@ -64,20 +65,28 @@ export async function convertLeadToCustomer(formData: FormData) {
   if (!port) throw new Error("No free splitter port available network-wide");
   const [sn] = await db.select().from(s.splitterNodes).where(eq(s.splitterNodes.id, port.snId)).limit(1);
 
-  const { custId, onuId } = await nextCustomerId();
+  const settings = await getSystemSettings();
+  const locationId = String(formData.get("locationId") || "") || settings.defaultLocationId;
+  if (!locationId) throw new Error("A location is required (set a default in Settings, or select one here).");
+  const [location] = await db.select().from(s.locations).where(eq(s.locations.id, locationId)).limit(1);
+  if (!location) throw new Error("Selected location was not found.");
+
+  const custId = await nextLocationCustomerId(location.id, settings.subscriberIdServiceCode, settings.subscriberIdDigitCount);
+  const onuId = await nextOnuId();
   const now = new Date();
   const expiry = new Date(now.getTime() + tariff.validityDays * DAY_MS);
 
   await db.insert(s.customers).values({
-    id: custId, username: custId.toLowerCase().replace("cus-", "sub"), fullName: lead.fullName,
+    id: custId, username: custId.toLowerCase(), fullName: lead.fullName,
     email: lead.email, phone: lead.phone, address: lead.address || `${lead.zone ?? "Yangon"}`,
     accountType: "personal", zone: lead.zone || (sn?.zone ?? "Hlaing"),
     lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
     status: "active", installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
-    snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase().replace("cus-", "sub"),
+    snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase(),
+    locationId: location.id, vlan: tariff.vlan,
   });
   await db.insert(s.onus).values({
-    id: onuId, serial: "NEWONU" + custId.replace("CUS-", ""), mac: "48:3F:DA:00:00:01",
+    id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:01",
     vendor: "Huawei", model: "EG8145V5", snId: port.snId, snPort: port.port, customerId: custId,
     installDate: now, status: "online", rxDbmBase: -19.5, txDbmBase: 2.1,
   });

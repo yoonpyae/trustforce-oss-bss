@@ -27,6 +27,8 @@ This matters, so it's stated plainly rather than left to be discovered:
 - Leads (CRM pipeline) and their conversion into a real subscriber + ONU + splitter-port booking
 - Scheduled field appointments (installs/repairs/maintenance/surveys)
 - Staff accounts, the audit trail, messaging campaign records
+- Locations and system settings (subscriber ID format, VLAN inheritance, billing calculation mode)
+- The payment webhook endpoint itself (`/api/webhooks/payment`) — real code, real effect on real rows
 
 **Simulated — deterministic, generated from the object's ID and a slow time bucket (see `lib/sim.ts`), not
 persisted as if it were a real device reading:**
@@ -34,8 +36,9 @@ persisted as if it were a real device reading:**
 - ONU optical RX/TX jitter and the day-by-day optical trend
 - TR-069/GenieACS device management (not implemented — see the ACS guide's own 12–17 week estimate for what
   a real integration takes)
-- SMS/WhatsApp/payment-gateway delivery — a "send" or "settle" here writes a real campaign/payment row, but
-  nothing is actually dispatched to a carrier or bank
+- SMS/WhatsApp delivery — a "send" here writes a real campaign row, nothing is dispatched to a carrier
+- The *other end* of the payment webhook: no real KBZPay/WavePay/AYA Pay merchant account is wired to call it
+  — the endpoint is real, but nothing external calls it yet
 
 ## Authentication & user management
 
@@ -126,6 +129,44 @@ integration status, searchable audit trail).
 
 Global omni-search (**Ctrl + K**) resolves any identifier — subscriber, ONU serial/MAC, SN/DN/OLT/fibre ID,
 invoice, ticket, voucher — to its record.
+
+## Subscriber ID format, VLAN, and billing calculation mode
+
+Configured in **Settings → System settings**:
+
+- **Subscriber ID prefix & formatting**: new subscriber IDs are `{serviceCode}{location code}-{sequence}`, e.g.
+  `TFYGN-000123` — the service code and digit count are set here, the location segment comes from the
+  **Locations** table (add more branches/regions there, e.g. Mandalay/`MDY`, each with its own counter). A
+  subscriber's ID is generated once at onboarding and is not editable afterwards. This only applies going
+  forward — the ~550 seeded demo subscribers keep their original `CUS-0001`-style IDs, matching how a real
+  system would roll the new scheme out without renumbering existing accounts.
+- **VLAN**: each plan (Tariffs) can carry a VLAN; a subscriber inherits it from their plan at onboarding, plan
+  change, or recharge, shown on their Network & optical tab.
+- **Billing calculation mode**: `monthly` (default) always charges a plan's full fee on renewal. `daily`
+  excludes days a subscriber had no service — recharging an overdue/expired subscriber only charges for the
+  active days in the new cycle, at the plan's daily rate.
+- **POE device credentials**: an optional username/password pair per subscriber, for a secondary POE-powered
+  device on the same drop (e.g. a CCTV camera) — set at onboarding, shown on Network & optical.
+
+## Payment gateway webhook
+
+`POST /api/webhooks/payment` is what a real KBZPay/WavePay/AYA Pay merchant callback would hit — it isn't
+wired to an actual gateway (there's no merchant account here), but the endpoint itself is real and does the
+full automated-payment flow described by a live integration: auto-settle the invoice (or process a renewal)
+and auto CoA-reconnect a lapsed subscriber. It's excluded from the login-required middleware, since a payment
+gateway won't have a staff session — instead it checks an `x-webhook-secret` header against the secret shown
+on Settings → System settings.
+
+```
+POST /api/webhooks/payment
+x-webhook-secret: <paymentWebhookSecret>
+Content-Type: application/json
+
+{ "customerId": "CUS-0001", "invoiceId": "INV-26097", "method": "kbzpay", "transactionId": "TXN-123" }
+```
+
+`invoiceId` omitted → treated as a plan renewal for `customerId` (same as the Recharge button, respects the
+billing calculation mode above) instead of settling a specific invoice.
 
 See [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) for the object model this was built from, and
 [`lib/schema.ts`](lib/schema.ts) for the actual Drizzle schema.

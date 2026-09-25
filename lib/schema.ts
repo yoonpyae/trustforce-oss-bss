@@ -141,7 +141,29 @@ export const tariffs = pgTable("tariffs", {
   bandwidthProfileId: text("bandwidth_profile_id").notNull(),
   ipPoolId: text("ip_pool_id").notNull(),
   nasId: text("nas_id").notNull(),
+  vlan: integer("vlan"),
   expiredBehavior: text("expired_behavior").notNull().default("suspend"), // suspend | disable | grace
+});
+
+// Regions/branches a subscriber ID's location segment is drawn from (System
+// Settings § Subscriber ID prefix & formatting rules).
+export const locations = pgTable("locations", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(), // e.g. "Yangon"
+  code: text("code").notNull(), // e.g. "YGN" — the location segment of a subscriber ID
+  nextSequence: integer("next_sequence").notNull().default(1),
+});
+
+// Singleton row (id = "default") for system-wide configuration that doesn't
+// belong to any one module: subscriber ID formatting and the billing
+// calculation mode.
+export const systemSettings = pgTable("system_settings", {
+  id: text("id").primaryKey().default("default"),
+  subscriberIdServiceCode: text("subscriber_id_service_code").notNull().default("TF"),
+  subscriberIdDigitCount: integer("subscriber_id_digit_count").notNull().default(6),
+  defaultLocationId: text("default_location_id"),
+  billingCalculationMode: text("billing_calculation_mode").notNull().default("monthly"), // monthly | daily
+  paymentWebhookSecret: text("payment_webhook_secret").notNull().default("demo-webhook-secret"),
 });
 
 export const customers = pgTable("customers", {
@@ -178,6 +200,10 @@ export const customers = pgTable("customers", {
   managementIp: text("management_ip"), // static/management IP, for business static-IP plans
   useOwnRouter: boolean("use_own_router").notNull().default(false),
   referredBy: text("referred_by"),
+  locationId: text("location_id"), // drives the subscriber ID's location prefix at creation
+  vlan: integer("vlan"), // copied from the plan at recharge/plan-change time, editable per subscriber
+  poeUsername: text("poe_username"), // POE device credentials (e.g. a CCTV camera on the same drop)
+  poePassword: text("poe_password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

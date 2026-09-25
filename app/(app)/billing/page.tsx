@@ -37,7 +37,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </div>
         <div className="spacer" />
         <Link href="/billing/vouchers" className="btn ghost">Vouchers →</Link>
-        <Link href="/tariffs" className="btn ghost">Tariffs →</Link>
+        <Link href="/tariffs" className="btn ghost">Plan →</Link>
       </div>
 
       <div className="grid g4" style={{ marginBottom: 14 }}>

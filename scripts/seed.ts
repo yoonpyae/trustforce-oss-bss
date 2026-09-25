@@ -56,13 +56,13 @@ const NAS_DEVICES = [
 ];
 
 const TARIFFS = [
-  { id: "TP-101", name: "Home Fiber 10", bw: "BW-10", price: 18000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal" },
-  { id: "TP-102", name: "Home Fiber 20", bw: "BW-20", price: 25000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal" },
-  { id: "TP-103", name: "Home Fiber 30", bw: "BW-30", price: 33000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal" },
-  { id: "TP-104", name: "Home Fiber 50", bw: "BW-50", price: 45000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal" },
-  { id: "TP-201", name: "SME Fiber 100", bw: "BW-100", price: 95000, cycle: "postpaid", days: 30, pool: "POOL-BIZ", segment: "business" },
-  { id: "TP-202", name: "Business Static 200", bw: "BW-200", price: 185000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business" },
-  { id: "TP-203", name: "Dedicated Line 500", bw: "BW-500", price: 620000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business" },
+  { id: "TP-101", name: "Home Fiber 10", bw: "BW-10", price: 18000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal", vlan: 100 },
+  { id: "TP-102", name: "Home Fiber 20", bw: "BW-20", price: 25000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal", vlan: 100 },
+  { id: "TP-103", name: "Home Fiber 30", bw: "BW-30", price: 33000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal", vlan: 101 },
+  { id: "TP-104", name: "Home Fiber 50", bw: "BW-50", price: 45000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal", vlan: 101 },
+  { id: "TP-201", name: "SME Fiber 100", bw: "BW-100", price: 95000, cycle: "postpaid", days: 30, pool: "POOL-BIZ", segment: "business", vlan: 200 },
+  { id: "TP-202", name: "Business Static 200", bw: "BW-200", price: 185000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business", vlan: 201 },
+  { id: "TP-203", name: "Dedicated Line 500", bw: "BW-500", price: 620000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business", vlan: 202 },
 ];
 
 const OLT_DEF = [
@@ -92,7 +92,7 @@ async function main() {
     s.inventoryItems, s.vendors, s.appointments,
     s.leads, s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes,
     s.distributionNodes, s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices,
-    s.ipPools, s.bandwidthProfiles, s.staff,
+    s.ipPools, s.bandwidthProfiles, s.staff, s.systemSettings, s.locations,
   ]) {
     await db.execute(sql`TRUNCATE TABLE ${table} CASCADE`);
   }
@@ -114,9 +114,16 @@ async function main() {
     TARIFFS.map((t) => ({
       id: t.id, name: t.name, status: "active", billingType: t.cycle, accountType: t.segment,
       priceMmk: t.price, validityDays: t.days, bandwidthProfileId: t.bw,
-      ipPoolId: t.pool, nasId: IP_POOLS.find((p) => p.id === t.pool)!.nas, expiredBehavior: "suspend",
+      ipPoolId: t.pool, nasId: IP_POOLS.find((p) => p.id === t.pool)!.nas, expiredBehavior: "suspend", vlan: t.vlan,
     }))
   );
+
+  // ---------------- locations + system settings ----------------
+  await db.insert(s.locations).values([{ id: "LOC-YGN", name: "Yangon", code: "YGN", nextSequence: 1 }]);
+  await db.insert(s.systemSettings).values({
+    id: "default", subscriberIdServiceCode: "TF", subscriberIdDigitCount: 6,
+    defaultLocationId: "LOC-YGN", billingCalculationMode: "monthly", paymentWebhookSecret: "demo-webhook-secret",
+  });
 
   const demoPasswordHash = await hashPassword("trustforce123");
   await db.insert(s.staff).values([
@@ -271,6 +278,7 @@ async function main() {
         managementIp: isStaticPool ? "103.86.14." + (2 + (cusSeq % 250)) : null,
         useOwnRouter: chance(isBiz ? 0.05 : 0.15),
         referredBy: pick(referralPool),
+        locationId: "LOC-YGN", vlan: tariff.vlan,
       });
 
       onuRows.push({

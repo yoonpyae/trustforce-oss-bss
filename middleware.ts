@@ -23,5 +23,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico).*)"],
+  // /api/webhooks/** is excluded: those are called by external services (a
+  // payment gateway) with no session cookie, authenticated by their own
+  // shared-secret check instead — see app/api/webhooks/payment/route.ts.
+  matcher: ["/((?!login|api/webhooks|_next/static|_next/image|favicon.ico).*)"],
 };

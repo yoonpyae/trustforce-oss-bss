@@ -5,7 +5,8 @@ import * as s from "@/lib/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
-import { findFreeSnPort, nextCustomerId } from "@/lib/queries/customers";
+import { findFreeSnPort, nextOnuId, nextLocationCustomerId } from "@/lib/queries/customers";
+import { getSystemSettings } from "@/lib/queries/settings";
 import { hashPassword } from "@/lib/password";
 import { randomBytes } from "crypto";
 
@@ -32,20 +33,34 @@ export async function recharge(formData: FormData) {
   if (!tariff) return;
 
   const now = Date.now();
+  const wasDown = customer.status === "expired" || customer.status === "suspended";
   const base = customer.expiryDate && new Date(customer.expiryDate).getTime() > now ? new Date(customer.expiryDate).getTime() : now;
   const newExpiry = new Date(base + tariff.validityDays * DAY_MS);
-  const tax = Math.round(tariff.priceMmk * 0.05);
+
+  // Billing calculation mode (System Settings): monthly always charges the
+  // plan's full standard fee; daily excludes days the subscriber had no
+  // service (down since their old expiry) from what's charged.
+  const settings = await getSystemSettings();
+  let amountMmk = tariff.priceMmk;
+  let billingNote = "";
+  if (settings.billingCalculationMode === "daily" && wasDown && customer.expiryDate) {
+    const daysDown = Math.min(tariff.validityDays, Math.max(0, Math.round((now - new Date(customer.expiryDate).getTime()) / DAY_MS)));
+    const dailyRate = tariff.priceMmk / tariff.validityDays;
+    amountMmk = Math.round(dailyRate * (tariff.validityDays - daysDown));
+    billingNote = ` (daily billing: ${tariff.validityDays - daysDown}/${tariff.validityDays} active days, ${daysDown}d excluded)`;
+  }
+  const tax = Math.round(amountMmk * 0.05);
 
   const invId = await nextInvoiceId();
   await db.insert(s.invoices).values({
-    id: invId, customerId, tariffId: tariff.id, amountMmk: tariff.priceMmk, taxMmk: tax,
+    id: invId, customerId, tariffId: tariff.id, amountMmk, taxMmk: tax,
     issuedDate: new Date(now), dueDate: new Date(now), periodStart: new Date(now), periodEnd: newExpiry,
     status: "paid", method,
   });
-  await db.insert(s.payments).values({ id: await nextPaymentId(), invoiceId: invId, customerId, amountMmk: tariff.priceMmk + tax, method, reconciled: true });
+  await db.insert(s.payments).values({ id: await nextPaymentId(), invoiceId: invId, customerId, amountMmk: amountMmk + tax, method, reconciled: true });
 
-  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
-  await logAudit("Recharge", "customer", customerId, `${tariff.name} renewed via ${method}, new expiry ${newExpiry.toISOString().slice(0, 10)}`);
+  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, vlan: tariff.vlan, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  await logAudit("Recharge", "customer", customerId, `${tariff.name} renewed via ${method}, new expiry ${newExpiry.toISOString().slice(0, 10)}${billingNote}`);
 
   revalidatePath(`/subscribers/${customerId}`);
   revalidatePath("/subscribers");
@@ -121,7 +136,7 @@ export async function changePlan(formData: FormData) {
     }
   }
 
-  await db.update(s.customers).set({ tariffId: newTariff.id, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  await db.update(s.customers).set({ tariffId: newTariff.id, vlan: newTariff.vlan, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
   await logAudit("Plan change", "customer", customerId, `${oldTariff?.name ?? "—"} → ${newTariff.name} (${prorationNote})`);
 
   revalidatePath(`/subscribers/${customerId}`);
@@ -138,6 +153,14 @@ export async function addCustomer(formData: FormData) {
 
   const [tariff] = await db.select().from(s.tariffs).where(eq(s.tariffs.id, tariffId)).limit(1);
   if (!tariff) throw new Error("Selected plan was not found.");
+
+  // Subscriber ID prefix & formatting: location is mandatory and drives the
+  // ID's prefix; System Settings sets the service code and digit count.
+  const settings = await getSystemSettings();
+  const locationId = String(formData.get("locationId") || "") || settings.defaultLocationId;
+  if (!locationId) throw new Error("A location is required (set a default in Settings, or select one here).");
+  const [location] = await db.select().from(s.locations).where(eq(s.locations.id, locationId)).limit(1);
+  if (!location) throw new Error("Selected location was not found.");
 
   // Contact & address
   const email = String(formData.get("email") || "").trim() || null;
@@ -161,6 +184,8 @@ export async function addCustomer(formData: FormData) {
   const managementIp = String(formData.get("managementIp") || "").trim() || null;
   const useOwnRouter = formData.get("useOwnRouter") === "on";
   const referredBy = String(formData.get("referredBy") || "").trim() || null;
+  const poeUsername = String(formData.get("poeUsername") || "").trim() || null;
+  const poePassword = String(formData.get("poePassword") || "").trim() || null;
 
   // Portal login: admin-set or auto-generated, always stored hashed (no client portal exists yet — see README)
   const portalPasswordInput = String(formData.get("portalPassword") || "").trim();
@@ -174,7 +199,8 @@ export async function addCustomer(formData: FormData) {
   if (!port) throw new Error("No free splitter port available network-wide");
   const [sn] = await db.select().from(s.splitterNodes).where(eq(s.splitterNodes.id, port.snId)).limit(1);
 
-  const { custId, onuId } = await nextCustomerId();
+  const custId = await nextLocationCustomerId(location.id, settings.subscriberIdServiceCode, settings.subscriberIdDigitCount);
+  const onuId = await nextOnuId();
   const now = new Date();
   const expiry = new Date(now.getTime() + tariff.validityDays * DAY_MS);
 
@@ -183,7 +209,7 @@ export async function addCustomer(formData: FormData) {
     const [taken] = await db.select({ id: s.customers.id }).from(s.customers).where(eq(s.customers.username, usernameInput)).limit(1);
     if (taken) throw new Error(`Portal login "${usernameInput}" is already in use.`);
   }
-  const username = usernameInput || custId.toLowerCase().replace("cus-", "sub");
+  const username = usernameInput || custId.toLowerCase();
 
   await db.insert(s.customers).values({
     id: custId, username, portalPasswordHash: await hashPassword(portalPassword),
@@ -192,9 +218,10 @@ export async function addCustomer(formData: FormData) {
     status, customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: username,
     dateOfBirth, nationalId, contractId, contractEndDate, bankAccount, managementIp, useOwnRouter, referredBy,
+    locationId: location.id, vlan: tariff.vlan, poeUsername, poePassword,
   });
   await db.insert(s.onus).values({
-    id: onuId, serial: "NEWONU" + custId.replace("CUS-", ""), mac: "48:3F:DA:00:00:00",
+    id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:00",
     vendor: "Huawei", model: "EG8145V5", snId: port.snId, snPort: port.port, customerId: custId,
     installDate: now, status: "online", rxDbmBase: -19.5, txDbmBase: 2.1,
   });

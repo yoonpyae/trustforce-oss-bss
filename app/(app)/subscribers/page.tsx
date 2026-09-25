@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listCustomers, getZones } from "@/lib/queries/customers";
+import { listLocations } from "@/lib/queries/settings";
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
 import { Pill } from "@/components/Pill";
@@ -10,10 +11,11 @@ export const dynamic = "force-dynamic";
 
 export default async function SubscribersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; zone?: string }> }) {
   const sp = await searchParams;
-  const [customers, zones, tariffs] = await Promise.all([
+  const [customers, zones, tariffs, locations] = await Promise.all([
     listCustomers({ q: sp.q, status: sp.status, zone: sp.zone, limit: 300 }),
     getZones(),
     db.select().from(s.tariffs),
+    listLocations(),
   ]);
 
   return (
@@ -25,7 +27,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
         </div>
         <div className="spacer" />
         <a href="/api/reports/customers" className="btn ghost">Export CSV</a>
-        <AddCustomerForm zones={zones} tariffs={tariffs} />
+        <AddCustomerForm zones={zones} tariffs={tariffs} locations={locations} />
       </div>
 
       <form className="toolbar" method="get">

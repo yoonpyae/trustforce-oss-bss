@@ -62,8 +62,12 @@ export async function getCustomerDetail(id: string) {
   const bandwidthProfiles = await db.select().from(s.bandwidthProfiles);
   const bw = tariff[0] ? bandwidthProfiles.find((b) => b.id === tariff[0].bandwidthProfileId) : undefined;
 
+  const location = customer.locationId
+    ? (await db.select().from(s.locations).where(eq(s.locations.id, customer.locationId)).limit(1))[0] ?? null
+    : null;
+
   return {
-    customer, tariff: tariff[0] ?? null, bandwidth: bw ?? null,
+    customer, tariff: tariff[0] ?? null, bandwidth: bw ?? null, location,
     onu: onu[0] ?? null, sn, dn, ponPort, olt,
     invoices: invoicesRows, payments: paymentsRows, tickets: ticketsRows, asset: asset[0] ?? null,
   };
@@ -85,4 +89,25 @@ export async function nextCustomerId(): Promise<{ custId: string; onuId: string;
   const [row] = await db.select({ id: s.customers.id }).from(s.customers).orderBy(desc(sql`substring(${s.customers.id} from 5)::int`)).limit(1);
   const seq = row ? parseInt(row.id.replace("CUS-", ""), 10) + 1 : 1;
   return { custId: "CUS-" + String(seq).padStart(4, "0"), onuId: "ONU-" + String(seq).padStart(4, "0"), seq };
+}
+
+// ONU numbering stays a simple global sequence regardless of the customer ID
+// format, since it isn't part of the location-based subscriber ID scheme.
+export async function nextOnuId(): Promise<string> {
+  const [row] = await db.select({ id: s.onus.id }).from(s.onus).orderBy(desc(sql`substring(${s.onus.id} from 5)::int`)).limit(1);
+  const seq = row ? parseInt(row.id.replace("ONU-", ""), 10) + 1 : 1;
+  return "ONU-" + String(seq).padStart(4, "0");
+}
+
+// Subscriber ID prefix & formatting rules: {serviceCode}{location.code}-{sequence,
+// zero-padded to digitCount}, e.g. "TFYGN-000123". The location's own counter is
+// incremented atomically in the same statement that reads it, so two concurrent
+// onboardings can't collide even without an interactive transaction.
+export async function nextLocationCustomerId(locationId: string, serviceCode: string, digitCount: number): Promise<string> {
+  const result = await db.execute<{ code: string; next_sequence: number }>(
+    sql`UPDATE ${s.locations} SET next_sequence = next_sequence + 1 WHERE id = ${locationId} RETURNING code, next_sequence - 1 AS next_sequence`
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("Selected location was not found.");
+  return `${serviceCode}${row.code}-${String(row.next_sequence).padStart(digitCount, "0")}`;
 }

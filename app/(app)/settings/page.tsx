@@ -4,16 +4,19 @@ import { desc } from "drizzle-orm";
 import { Pill } from "@/components/Pill";
 import { dateTimeStr } from "@/lib/format";
 import { getSession } from "@/lib/auth-session";
+import { getSystemSettings, listLocations } from "@/lib/queries/settings";
 import { StaffTable } from "./StaffTable";
 import { AddStaffForm } from "./AddStaffForm";
 import { ChangePasswordForm } from "./ChangePasswordForm";
+import { SystemSettingsForm } from "./SystemSettingsForm";
+import { LocationsPanel } from "./LocationsPanel";
 
 export const dynamic = "force-dynamic";
 
 const ROLES = [
   { id: "sales", name: "Sales & CS", modules: "Leads, subscribers, tickets, schedule, messaging", danger: "No" },
   { id: "cashier", name: "Cashier / billing", modules: "Invoices, payments, vouchers, subscribers", danger: "No" },
-  { id: "network_ops", name: "Network operations", modules: "ODN plant, topology, live sessions, alarms, tickets, schedule, inventory, tariff read-only", danger: "Control actions" },
+  { id: "network_ops", name: "Network operations", modules: "ODN plant, topology, live sessions, alarms, tickets, schedule, inventory, plan read-only", danger: "Control actions" },
   { id: "sysadmin", name: "System administrator", modules: "All modules, settings, integrations, audit", danger: "Yes" },
   { id: "management", name: "Management / finance", modules: "Dashboards, finance, reports, exports", danger: "No" },
 ];
@@ -22,16 +25,18 @@ const INTEGRATIONS = [
   { name: "FreeRADIUS", status: "not connected", note: "Live network module runs on simulated session data — see README." },
   { name: "MikroTik / NAS API", status: "not connected", note: "PON port and CoA actions here update Neon only, not real hardware." },
   { name: "GenieACS (TR-069)", status: "not connected", note: "ONU Wi-Fi/PPPoE provisioning is out of scope for this build." },
-  { name: "KBZPay / WavePay gateway", status: "not connected", note: "Recharge/settle actions record the payment method chosen; no gateway callback exists." },
+  { name: "KBZPay / WavePay / AYA Pay gateway", status: "webhook ready", note: "POST /api/webhooks/payment auto-settles the invoice and CoA-reconnects the subscriber — wire it to a merchant account's callback URL with the shared secret below to go live." },
   { name: "SMS / WhatsApp gateway", status: "not connected", note: "Messaging campaigns are logged, not dispatched." },
 ];
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ q?: string; mustChangePassword?: string }> }) {
   const sp = await searchParams;
   const session = await getSession();
-  const [staff, auditRows] = await Promise.all([
+  const [staff, auditRows, systemSettings, locations] = await Promise.all([
     db.select().from(s.staff),
     db.select().from(s.auditLog).orderBy(desc(s.auditLog.timestamp)).limit(120),
+    getSystemSettings(),
+    listLocations(),
   ]);
   const filteredAudit = sp.q
     ? auditRows.filter((r) => [r.actor, r.action, r.objectId, r.detail].join(" ").toLowerCase().includes(sp.q!.toLowerCase()))
@@ -76,6 +81,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div className="stack">
           {isSysadmin && <AddStaffForm />}
           {!sp.mustChangePassword && <ChangePasswordForm />}
+        </div>
+      </div>
+
+      <div className="split" style={{ marginBottom: 14 }}>
+        <div className="card">
+          <header><h3>System settings</h3></header>
+          <SystemSettingsForm settings={systemSettings} locations={locations} isSysadmin={isSysadmin} />
+        </div>
+        <div className="card">
+          <header><h3 style={{ flex: 1 }}>Locations</h3><span className="hint">Drives the subscriber ID prefix</span></header>
+          <LocationsPanel locations={locations} isSysadmin={isSysadmin} />
         </div>
       </div>
 
