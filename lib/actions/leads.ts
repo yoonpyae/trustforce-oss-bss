@@ -16,6 +16,12 @@ async function nextLeadId() {
   return "LD-" + String(seq).padStart(4, "0");
 }
 
+async function nextInvoiceId() {
+  const [row] = await db.select({ id: s.invoices.id }).from(s.invoices).orderBy(desc(sql`substring(${s.invoices.id} from 5)::int`)).limit(1);
+  const seq = row ? parseInt(row.id.replace("INV-", ""), 10) + 1 : 26100;
+  return "INV-" + String(seq);
+}
+
 export async function createLead(formData: FormData) {
   const fullName = String(formData.get("fullName") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -74,27 +80,43 @@ export async function convertLeadToCustomer(formData: FormData) {
   const custId = await nextLocationCustomerId(location.id, settings.subscriberIdServiceCode, settings.subscriberIdDigitCount);
   const onuId = await nextOnuId();
   const now = new Date();
-  const expiry = new Date(now.getTime() + tariff.validityDays * DAY_MS);
+  const periodEnd = new Date(now.getTime() + tariff.validityDays * DAY_MS);
 
+  // TrustForce only counts a lead as a real customer once their first payment
+  // clears (prepaid-first model) — provision the account and ONU now so the
+  // splitter port is reserved and everything is ready, but leave the customer
+  // "pending" (no expiryDate yet, ONU offline) and the ONU offline until the
+  // first invoice below is settled. See settleInvoice's pending-activation branch.
   await db.insert(s.customers).values({
     id: custId, username: custId.toLowerCase(), fullName: lead.fullName,
     email: lead.email, phone: lead.phone, address: lead.address || `${lead.zone ?? "Yangon"}`,
     accountType: "personal", zone: lead.zone || (sn?.zone ?? "Hlaing"),
     lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
-    status: "active", installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
+    status: "pending", installedDate: now, tariffId: tariff.id, expiryDate: null, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase(),
     locationId: location.id, vlan: tariff.vlan,
   });
   await db.insert(s.onus).values({
     id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:01",
     vendor: "Huawei", model: "EG8145V5", snId: port.snId, snPort: port.port, customerId: custId,
-    installDate: now, status: "online", rxDbmBase: -19.5, txDbmBase: 2.1,
+    installDate: now, status: "offline", rxDbmBase: -19.5, txDbmBase: 2.1,
   });
+
+  const invoiceId = await nextInvoiceId();
+  const amount = tariff.priceMmk;
+  const tax = Math.round(amount * 0.05);
+  await db.insert(s.invoices).values({
+    id: invoiceId, customerId: custId, tariffId: tariff.id, status: "pending",
+    amountMmk: amount, taxMmk: tax, issuedDate: now, dueDate: new Date(now.getTime() + 3 * DAY_MS),
+    periodStart: now, periodEnd, method: null,
+  });
+
   await db.update(s.leads).set({ status: "won", convertedCustomerId: custId, updatedAt: new Date() }).where(eq(s.leads.id, leadId));
-  await logAudit("Lead converted", "lead", leadId, `→ ${custId} on ${tariff.name}`);
+  await logAudit("Lead converted", "lead", leadId, `→ ${custId} on ${tariff.name} (pending first payment, ${invoiceId})`);
 
   revalidatePath("/leads");
   revalidatePath("/subscribers");
+  revalidatePath("/billing");
   revalidatePath("/dashboard");
   revalidatePath("/odn");
 }

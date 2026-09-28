@@ -1,26 +1,59 @@
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
-import { and, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 
-export async function listBillingClients(opts: { q?: string; filter?: "active" | "expired" | "all" }) {
-  const conds = [];
-  if (opts.q) {
-    const like = `%${opts.q}%`;
-    conds.push(or(ilike(s.customers.fullName, like), ilike(s.customers.id, like), ilike(s.customers.username, like)));
-  }
-  if (opts.filter === "active") conds.push(sql`${s.customers.status} in ('active','grace')`);
-  if (opts.filter === "expired") conds.push(sql`${s.customers.status} in ('expired','suspended')`);
+// Collections: who currently owes money, not a status-tabbed customer roster.
+// Aggregates every unpaid invoice (pending or overdue, including a lead's very
+// first invoice before they're activated) per customer, oldest due date first.
+export async function listCollections(opts: { q?: string }) {
+  const unpaid = await db
+    .select({
+      id: s.invoices.id, customerId: s.invoices.customerId, tariffId: s.invoices.tariffId,
+      amountMmk: s.invoices.amountMmk, taxMmk: s.invoices.taxMmk,
+      dueDate: s.invoices.dueDate, status: s.invoices.status,
+    })
+    .from(s.invoices)
+    .where(sql`${s.invoices.status} != 'paid'`);
 
-  const rows = await db
-    .select()
-    .from(s.customers)
-    .where(conds.length ? and(...conds) : undefined)
-    .orderBy(desc(s.customers.expiryDate))
-    .limit(300);
-
+  const customers = await db.select().from(s.customers);
+  const cMap = new Map(customers.map((c) => [c.id, c]));
   const tariffs = await db.select().from(s.tariffs);
   const tMap = new Map(tariffs.map((t) => [t.id, t]));
-  return { rows: rows.map((c) => ({ ...c, tariff: c.tariffId ? tMap.get(c.tariffId) : undefined })), tariffs };
+
+  type Row = {
+    customer: (typeof customers)[number]; tariffName?: string;
+    owedMmk: number; invoiceCount: number; earliestDueDate: Date; earliestInvoiceId: string; anyOverdue: boolean;
+  };
+  const byCustomer = new Map<string, Row>();
+  for (const inv of unpaid) {
+    const customer = cMap.get(inv.customerId);
+    if (!customer) continue;
+    const existing = byCustomer.get(inv.customerId);
+    const owed = inv.amountMmk + inv.taxMmk;
+    if (!existing) {
+      byCustomer.set(inv.customerId, {
+        customer, tariffName: inv.tariffId ? tMap.get(inv.tariffId)?.name : undefined,
+        owedMmk: owed, invoiceCount: 1, earliestDueDate: inv.dueDate, earliestInvoiceId: inv.id,
+        anyOverdue: inv.status === "overdue",
+      });
+    } else {
+      existing.owedMmk += owed;
+      existing.invoiceCount += 1;
+      existing.anyOverdue = existing.anyOverdue || inv.status === "overdue";
+      if (new Date(inv.dueDate) < new Date(existing.earliestDueDate)) {
+        existing.earliestDueDate = inv.dueDate;
+        existing.earliestInvoiceId = inv.id;
+      }
+    }
+  }
+
+  let list = Array.from(byCustomer.values());
+  if (opts.q) {
+    const q = opts.q.toLowerCase();
+    list = list.filter((r) => r.customer.fullName.toLowerCase().includes(q) || r.customer.id.toLowerCase().includes(q) || r.customer.username.toLowerCase().includes(q));
+  }
+  list.sort((a, b) => new Date(a.earliestDueDate).getTime() - new Date(b.earliestDueDate).getTime());
+  return list.slice(0, 300);
 }
 
 export async function getBillingKpis() {

@@ -83,58 +83,64 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
             <div className="card">
               <header><h3>Actions</h3></header>
               <div className="stack">
-                <form action={recharge} className="row">
-                  <input type="hidden" name="customerId" value={c.id} />
-                  <select name="method" className="plain" defaultValue="kbzpay" style={{ flex: 1 }}>
-                    <option value="kbzpay">KBZPay</option>
-                    <option value="wavepay">WavePay</option>
-                    <option value="cash">Cash</option>
-                    <option value="bank">Bank transfer</option>
-                    <option value="wallet">Wallet balance</option>
-                  </select>
-                  <button className="btn primary sm" type="submit" disabled={!detail.tariff}>Recharge</button>
-                </form>
-
-                <form action={addBalance} className="row">
-                  <input type="hidden" name="customerId" value={c.id} />
-                  <input className="plain" name="amount" type="number" min={0} step={1000} placeholder="Amount MMK" style={{ flex: 1 }} />
-                  <button className="btn sm" type="submit">Add balance</button>
-                </form>
-
-                <form action={grantGrace} className="row">
-                  <input type="hidden" name="customerId" value={c.id} />
-                  <select name="days" className="plain" defaultValue="2" style={{ flex: 1 }}>
-                    {[1, 2, 3, 4, 5].map((d) => <option key={d} value={d}>{d} day grace</option>)}
-                  </select>
-                  <button className="btn sm" type="submit">Extend</button>
-                </form>
-
-                <form action={changePlan} className="row">
-                  <input type="hidden" name="customerId" value={c.id} />
-                  <select name="tariffId" className="plain" defaultValue="" style={{ flex: 1 }}>
-                    <option value="" disabled>Change plan to…</option>
-                    {tariffs.filter((t) => t.accountType === c.accountType).map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                  <button className="btn sm" type="submit">Change plan</button>
-                </form>
-
-                <div className="row">
-                  {c.status !== "active" && (
-                    <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="active" />
-                      <button className="btn sm primary" type="submit">CoA reconnect</button>
+                {c.status === "pending" ? (
+                  <p className="hint">Awaiting first payment — settle their pending invoice on the Billing tab to activate service and switch the ONU on.</p>
+                ) : (
+                  <>
+                    <form action={recharge} className="row">
+                      <input type="hidden" name="customerId" value={c.id} />
+                      <select name="method" className="plain" defaultValue="kbzpay" style={{ flex: 1 }}>
+                        <option value="kbzpay">KBZPay</option>
+                        <option value="wavepay">WavePay</option>
+                        <option value="cash">Cash</option>
+                        <option value="bank">Bank transfer</option>
+                        <option value="wallet">Wallet balance</option>
+                      </select>
+                      <button className="btn primary sm" type="submit" disabled={!detail.tariff}>Recharge</button>
                     </form>
-                  )}
-                  {c.status === "active" && (
-                    <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="suspended" />
-                      <button className="btn sm danger" type="submit">CoA disconnect</button>
+
+                    <form action={addBalance} className="row">
+                      <input type="hidden" name="customerId" value={c.id} />
+                      <input className="plain" name="amount" type="number" min={0} step={1000} placeholder="Amount MMK" style={{ flex: 1 }} />
+                      <button className="btn sm" type="submit">Add balance</button>
                     </form>
-                  )}
-                  <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="banned" />
-                    <button className="btn sm ghost" type="submit">Ban</button>
-                  </form>
-                </div>
+
+                    <form action={grantGrace} className="row">
+                      <input type="hidden" name="customerId" value={c.id} />
+                      <select name="days" className="plain" defaultValue="2" style={{ flex: 1 }}>
+                        {[1, 2, 3, 4, 5].map((d) => <option key={d} value={d}>{d} day grace</option>)}
+                      </select>
+                      <button className="btn sm" type="submit">Extend</button>
+                    </form>
+
+                    <form action={changePlan} className="row">
+                      <input type="hidden" name="customerId" value={c.id} />
+                      <select name="tariffId" className="plain" defaultValue="" style={{ flex: 1 }}>
+                        <option value="" disabled>Change plan to…</option>
+                        {tariffs.filter((t) => t.accountType === c.accountType).map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <button className="btn sm" type="submit">Change plan</button>
+                    </form>
+
+                    <div className="row">
+                      {c.status !== "active" && (
+                        <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="active" />
+                          <button className="btn sm primary" type="submit">CoA reconnect</button>
+                        </form>
+                      )}
+                      {c.status === "active" && (
+                        <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="suspended" />
+                          <button className="btn sm danger" type="submit">CoA disconnect</button>
+                        </form>
+                      )}
+                      <form action={setStatus} className="inline"><input type="hidden" name="customerId" value={c.id} /><input type="hidden" name="status" value="banned" />
+                        <button className="btn sm ghost" type="submit">Ban</button>
+                      </form>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

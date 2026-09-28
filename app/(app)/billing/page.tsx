@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listBillingClients, getBillingKpis, getPaymentMethodBreakdown } from "@/lib/queries/billing";
+import { listCollections, getBillingKpis, getPaymentMethodBreakdown } from "@/lib/queries/billing";
 import { getRevenueByMonth } from "@/lib/queries/reports";
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
@@ -7,7 +7,6 @@ import { desc, eq } from "drizzle-orm";
 import { Pill } from "@/components/Pill";
 import { mmk, dateStr, dateTimeStr } from "@/lib/format";
 import { settleInvoice } from "@/lib/actions/billing";
-import { recharge } from "@/lib/actions/customers";
 import { BarChart, Donut } from "@/components/Charts";
 
 export const dynamic = "force-dynamic";
@@ -16,11 +15,10 @@ const METHOD_COLORS: Record<string, string> = {
   kbzpay: "#2fd3e1", wavepay: "#9b8cff", cash: "#34d399", bank: "#f5a524", wallet: "#7c93a3",
 };
 
-export default async function BillingPage({ searchParams }: { searchParams: Promise<{ q?: string; filter?: "active" | "expired" | "all" }> }) {
+export default async function BillingPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
-  const filter = sp.filter ?? "active";
-  const [{ rows, tariffs }, kpis, recentInvoices, revenue, methodBreakdown] = await Promise.all([
-    listBillingClients({ q: sp.q, filter }),
+  const [collections, kpis, recentInvoices, revenue, methodBreakdown] = await Promise.all([
+    listCollections({ q: sp.q }),
     getBillingKpis(),
     db.select().from(s.invoices).orderBy(desc(s.invoices.issuedDate)).limit(20),
     getRevenueByMonth(12),
@@ -68,40 +66,32 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <div className="split">
         <div className="card">
           <header>
-            <h3 style={{ flex: 1 }}>Clients</h3>
+            <h3 style={{ flex: 1 }}>Collections — who owes money</h3>
             <form method="get" className="row">
-              <input type="hidden" name="filter" value={filter} />
               <input className="plain" type="search" name="q" placeholder="Search…" defaultValue={sp.q ?? ""} />
               <button className="btn sm" type="submit">Search</button>
             </form>
           </header>
-          <div className="tabs">
-            {(["active", "expired", "all"] as const).map((f) => (
-              <Link key={f} href={`/billing?filter=${f}`} className={filter === f ? "on" : undefined} style={{ padding: "8px 12px", fontSize: 13 }}>
-                {f === "active" ? "Active" : f === "expired" ? "Expired / suspended" : "All"}
-              </Link>
-            ))}
-          </div>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Customer</th><th>Plan</th><th>Status</th><th>Expiry</th><th></th></tr></thead>
+              <thead><tr><th>Customer</th><th>Plan</th><th>Owed</th><th>Due</th><th></th></tr></thead>
               <tbody>
-                {rows.map((c) => (
-                  <tr key={c.id}>
-                    <td><Link href={`/subscribers/${c.id}`}>{c.fullName}</Link><div className="hint num">{c.id}</div></td>
-                    <td>{c.tariff?.name ?? "—"}</td>
-                    <td><Pill status={c.status} /></td>
-                    <td>{dateStr(c.expiryDate)}</td>
+                {collections.map((r) => (
+                  <tr key={r.customer.id}>
+                    <td><Link href={`/subscribers/${r.customer.id}`}>{r.customer.fullName}</Link><div className="hint num">{r.customer.id}</div></td>
+                    <td>{r.tariffName ?? "—"}</td>
+                    <td className="num">{mmk(r.owedMmk)}{r.invoiceCount > 1 && <div className="hint">{r.invoiceCount} invoices</div>}</td>
+                    <td><Pill status={r.anyOverdue ? "overdue" : "pending"} /> {dateStr(r.earliestDueDate)}</td>
                     <td>
-                      <form action={recharge} className="row">
-                        <input type="hidden" name="customerId" value={c.id} />
+                      <form action={settleInvoice} className="row">
+                        <input type="hidden" name="invoiceId" value={r.earliestInvoiceId} />
                         <input type="hidden" name="method" value="cash" />
-                        <button className="btn sm primary" type="submit" disabled={!c.tariff}>Recharge</button>
+                        <button className="btn sm primary" type="submit">Settle</button>
                       </form>
                     </td>
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td colSpan={5} className="empty">No clients match.</td></tr>}
+                {collections.length === 0 && <tr><td colSpan={5} className="empty">Nothing outstanding — everyone's paid up.</td></tr>}
               </tbody>
             </table>
           </div>

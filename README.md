@@ -24,7 +24,8 @@ This matters, so it's stated plainly rather than left to be discovered:
 - The ODN fibre-plant object model itself: OLTs, PON ports, DNs, SNs, ONUs, fibre routes (used for the map
   and for topology trace/fault-impact — this needs to be real for those features to mean anything)
 - Helpdesk tickets (kanban), inventory stock and asset-to-customer binding
-- Leads (CRM pipeline) and their conversion into a real subscriber + ONU + splitter-port booking
+- Leads (CRM pipeline) and their conversion into a real, prepaid-first subscriber + ONU + splitter-port booking
+  (see below — a converted lead is `pending` until their first invoice is settled)
 - Scheduled field appointments (installs/repairs/maintenance/surveys)
 - Staff accounts, the audit trail, messaging campaign records
 - Locations and system settings (subscriber ID format, VLAN inheritance, billing calculation mode)
@@ -107,11 +108,13 @@ out from one combined admin home.
 
 **Business** — Dashboard (live KPIs, collections chart, weak-point table, shortcut widgets into Leads/Schedule/
 Tickets/Inventory) · **Leads** (CRM pipeline for new inquiries — source/status funnel, convert a qualified lead
-straight into a provisioned subscriber, which books a real splitter port) · Subscribers (360° view: overview,
-billing, network & optical, support; recharge, wallet top-up, proration'd plan change, grace extension,
-onboarding that books a free splitter port) · Billing & finance dashboard (revenue trend, payment-method mix,
-invoices, payments, vouchers) · Tariffs (plan editor with the pre-publish dependency check: bandwidth profile +
-IP pool + NAS + validity + expiry behaviour).
+straight into a provisioned subscriber, which books a real splitter port and ONU but leaves them `pending` —
+not a real active customer — until their first invoice is settled) · Subscribers (360° view: overview, billing,
+network & optical, support; recharge, wallet top-up, proration'd plan change, grace extension, onboarding that
+books a free splitter port) · Billing & finance dashboard (revenue trend, payment-method mix, a **collections**
+list of who currently owes money — pending first payments and overdue renewals, oldest due date first, no
+status tabs — invoices, payments, vouchers) · Tariffs (plan editor with the pre-publish dependency check:
+bandwidth profile + IP pool + NAS + validity + expiry behaviour).
 
 **Fibre network** — **Networking map**: OLT → PON port → feeder fibre → DN 1:4 → distribution fibre → SN 1:16 →
 ONU → customer, as a Leaflet map paired with a collapsible OLT/DN/SN layer tree and per-layer visibility toggles

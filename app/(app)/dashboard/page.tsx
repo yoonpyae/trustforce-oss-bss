@@ -31,7 +31,7 @@ export default async function DashboardPage() {
         <div className="card kpi">
           <span className="label">Active subscribers</span>
           <span className="value num">{num(m.active)}</span>
-          <span className="foot">{num(m.total)} total · {num(m.grace)} in grace · {num(m.suspended)} suspended</span>
+          <span className="foot">{num(m.total)} total · {num(m.grace)} in grace · {num(m.suspended)} suspended · {num(m.pending)} pending first payment</span>
         </div>
         <div className="card kpi">
           <span className="label">Online now</span>

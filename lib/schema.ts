@@ -183,7 +183,7 @@ export const customers = pgTable("customers", {
   zone: text("zone").notNull(),
   lat: doublePrecision("lat").notNull(),
   lng: doublePrecision("lng").notNull(),
-  status: text("status").notNull().default("active"), // active | grace | suspended | expired | banned | disabled
+  status: text("status").notNull().default("active"), // pending | active | grace | suspended | expired | banned | disabled
   customStatus: text("custom_status").notNull().default("customer"), // free-form tag, independent of lifecycle status
   installedDate: timestamp("installed_date").notNull(),
   tariffId: text("tariff_id"),

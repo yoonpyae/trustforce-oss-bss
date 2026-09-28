@@ -26,6 +26,15 @@ export async function settleInvoice(formData: FormData) {
     await db.update(s.customers).set({ status: "active" }).where(eq(s.customers.id, invoice.customerId));
     await logAudit("CoA reconnect", "customer", invoice.customerId, `Auto-reconnect after settling ${invoiceId}`);
   }
+  // A "pending" customer (a converted lead, prepaid-first-payment model — see
+  // convertLeadToCustomer) only counts as a real, active subscriber once their
+  // first invoice clears: activate them now, using the service period already
+  // stamped on that invoice, and turn their ONU on.
+  if (customer && customer.status === "pending") {
+    await db.update(s.customers).set({ status: "active", expiryDate: invoice.periodEnd }).where(eq(s.customers.id, invoice.customerId));
+    await db.update(s.onus).set({ status: "online" }).where(eq(s.onus.customerId, invoice.customerId));
+    await logAudit("First payment received — activated", "customer", invoice.customerId, `Service enabled through ${invoice.periodEnd.toISOString().slice(0, 10)}`);
+  }
   await logAudit("Payment recorded", "invoice", invoiceId, `${method} settlement, ${(invoice.amountMmk + invoice.taxMmk).toLocaleString()} MMK`);
 
   revalidatePath("/billing");
