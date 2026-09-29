@@ -172,6 +172,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .omni-hit:hover, .omni-hit[aria-selected="true"] { background: var(--cyan-wash); }
 .omni-empty { padding: 14px; color: var(--text-dim); }
 
+.notif-bell { position: relative; }
+.notif-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 3px;
+  background: var(--bad); color: #fff; border-radius: 999px; font-size: 10px; line-height: 16px; text-align: center;
+}
+.notif-panel {
+  position: absolute; z-index: 60; top: 42px; right: 0; width: 340px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  max-height: 420px; overflow: auto;
+  padding: 6px;
+}
+.notif-item { display: block; padding: 8px 10px; border-radius: var(--r-sm); }
+.notif-item:hover { background: var(--cyan-wash); }
+.notif-item.unread { background: var(--cyan-wash); }
+.notif-item b { display: block; font-size: 13px; }
+.notif-item .hint { display: block; margin-top: 2px; }
+.notif-empty { padding: 14px; color: var(--text-dim); }
+
 .topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .whoami { text-align: right; line-height: 1.2; }
 .whoami b { font-weight: 600; font-size: 13px; }

@@ -33,10 +33,11 @@ export async function getChurnRetention() {
   const total = customers.length;
   const expired = customers.filter((c) => c.status === "expired").length;
   const suspended = customers.filter((c) => c.status === "suspended").length;
+  const inactive = customers.filter((c) => c.status === "inactive").length;
   const in3 = new Date(Date.now() + 3 * 86400000);
   const atRisk = customers.filter((c) => (c.status === "active" || c.status === "grace") && c.expiryDate && new Date(c.expiryDate) <= in3);
-  const churnRate = total > 0 ? +(((expired + suspended) / total) * 100).toFixed(1) : 0;
-  return { total, expired, suspended, churnRate, atRisk };
+  const churnRate = total > 0 ? +(((expired + suspended + inactive) / total) * 100).toFixed(1) : 0;
+  return { total, expired, suspended, inactive, churnRate, atRisk };
 }
 
 export async function getMttrByTechnician() {

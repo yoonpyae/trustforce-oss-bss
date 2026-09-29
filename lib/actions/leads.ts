@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 import { findFreeSnPort, nextOnuId, nextLocationCustomerId } from "@/lib/queries/customers";
 import { getSystemSettings } from "@/lib/queries/settings";
+import { notifyRole } from "@/lib/notifications";
+import { requireRole } from "@/lib/require-role";
 
 const DAY_MS = 86400000;
 
@@ -40,8 +42,44 @@ export async function createLead(formData: FormData) {
   });
   await logAudit("Lead captured", "lead", id, `${fullName} via ${formData.get("source") ?? "website"}`);
 
+  // Alert the fiber team: an uncertain new inquiry needs a port-availability
+  // and fiber-feasibility check before it can be converted to a subscriber.
+  const zone = String(formData.get("zone") || "").trim();
+  await notifyRole(
+    "network_ops",
+    "New inquiry — feasibility check needed",
+    `${fullName}${zone ? ` in ${zone}` : ""} — confirm port availability and fiber feasibility.`,
+    { link: "/leads", relatedType: "lead", relatedId: id }
+  );
+
   revalidatePath("/leads");
   revalidatePath("/dashboard");
+}
+
+export async function confirmFeasibility(formData: FormData) {
+  const session = await requireRole("sysadmin", "network_ops");
+  const leadId = String(formData.get("leadId"));
+  const result = String(formData.get("result")) === "not_available" ? "not_available" : "available";
+  const notes = String(formData.get("notes") || "").trim() || null;
+
+  const [lead] = await db.select().from(s.leads).where(eq(s.leads.id, leadId)).limit(1);
+  if (!lead) return;
+
+  await db.update(s.leads).set({
+    feasibilityStatus: result, feasibilityNotes: notes,
+    feasibilityCheckedBy: session.name, feasibilityCheckedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(s.leads.id, leadId));
+  await logAudit("Feasibility checked", "lead", leadId, `${result === "available" ? "Available" : "Not available"}${notes ? ` — ${notes}` : ""}`);
+
+  await notifyRole(
+    "sales",
+    result === "available" ? "Feasibility confirmed" : "Feasibility declined",
+    `${lead.fullName} (${leadId}) — ${result === "available" ? "port available, ready to convert." : notes || "not feasible at this address."}`,
+    { link: "/leads", relatedType: "lead", relatedId: leadId }
+  );
+
+  revalidatePath("/leads");
 }
 
 export async function updateLeadStatus(formData: FormData) {
@@ -64,6 +102,9 @@ export async function convertLeadToCustomer(formData: FormData) {
   const tariffId = String(formData.get("tariffId"));
   const [lead] = await db.select().from(s.leads).where(eq(s.leads.id, leadId)).limit(1);
   if (!lead || !tariffId) return;
+  if (lead.feasibilityStatus !== "available") {
+    throw new Error("The fiber team hasn't confirmed port availability & feasibility for this lead yet.");
+  }
   const [tariff] = await db.select().from(s.tariffs).where(eq(s.tariffs.id, tariffId)).limit(1);
   if (!tariff) return;
 

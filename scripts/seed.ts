@@ -92,7 +92,7 @@ async function main() {
     s.inventoryItems, s.vendors, s.appointments,
     s.leads, s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes,
     s.distributionNodes, s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices,
-    s.ipPools, s.bandwidthProfiles, s.staff, s.systemSettings, s.locations,
+    s.ipPools, s.bandwidthProfiles, s.staff, s.systemSettings, s.locations, s.notifications,
   ]) {
     await db.execute(sql`TRUNCATE TABLE ${table} CASCADE`);
   }

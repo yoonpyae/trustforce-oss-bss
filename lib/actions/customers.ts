@@ -33,7 +33,7 @@ export async function recharge(formData: FormData) {
   if (!tariff) return;
 
   const now = Date.now();
-  const wasDown = customer.status === "expired" || customer.status === "suspended";
+  const wasDown = customer.status === "expired" || customer.status === "suspended" || customer.status === "inactive";
   const base = customer.expiryDate && new Date(customer.expiryDate).getTime() > now ? new Date(customer.expiryDate).getTime() : now;
   const newExpiry = new Date(base + tariff.validityDays * DAY_MS);
 
@@ -59,7 +59,8 @@ export async function recharge(formData: FormData) {
   });
   await db.insert(s.payments).values({ id: await nextPaymentId(), invoiceId: invId, customerId, amountMmk: amountMmk + tax, method, reconciled: true });
 
-  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, vlan: tariff.vlan, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, vlan: tariff.vlan, suspendedAt: null, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  if (wasDown) await db.update(s.onus).set({ status: "online" }).where(eq(s.onus.customerId, customerId));
   await logAudit("Recharge", "customer", customerId, `${tariff.name} renewed via ${method}, new expiry ${newExpiry.toISOString().slice(0, 10)}${billingNote}`);
 
   revalidatePath(`/subscribers/${customerId}`);

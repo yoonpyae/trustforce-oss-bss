@@ -3,9 +3,10 @@ import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
 import { Pill } from "@/components/Pill";
 import { dateStr, relTime } from "@/lib/format";
-import { updateLeadStatus, convertLeadToCustomer } from "@/lib/actions/leads";
+import { updateLeadStatus, convertLeadToCustomer, confirmFeasibility } from "@/lib/actions/leads";
 import { LeadForm } from "./LeadForm";
 import { Donut } from "@/components/Charts";
+import { getSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +18,14 @@ const STAGE_COLORS: Record<string, string> = {
 
 export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
   const sp = await searchParams;
-  const [leads, funnel, tariffs, zones] = await Promise.all([
+  const [leads, funnel, tariffs, zones, session] = await Promise.all([
     listLeads({ status: sp.status, q: sp.q }),
     getLeadsFunnel(),
     db.select().from(s.tariffs),
     db.select({ zone: s.customers.zone }).from(s.customers).groupBy(s.customers.zone),
+    getSession(),
   ]);
+  const canCheckFeasibility = session?.role === "sysadmin" || session?.role === "network_ops";
 
   return (
     <>
@@ -85,7 +88,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <div className="card">
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Lead</th><th>Source</th><th>Zone</th><th>Interested plan</th><th>Status</th><th>Captured</th><th></th></tr></thead>
+            <thead><tr><th>Lead</th><th>Source</th><th>Zone</th><th>Interested plan</th><th>Status</th><th>Feasibility</th><th>Captured</th><th></th></tr></thead>
             <tbody>
               {leads.map((l) => (
                 <tr key={l.id}>
@@ -97,6 +100,22 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     <Pill status={l.status === "won" ? "active" : l.status === "lost" ? "expired" : l.status} />
                     {l.convertedCustomerId && <div className="hint num">→ {l.convertedCustomerId}</div>}
                   </td>
+                  <td>
+                    <Pill status={l.feasibilityStatus === "available" ? "active" : l.feasibilityStatus === "not_available" ? "expired" : "pending"}>
+                      {l.feasibilityStatus === "available" ? "Available" : l.feasibilityStatus === "not_available" ? "Not available" : "Pending check"}
+                    </Pill>
+                    {l.feasibilityNotes && <div className="hint">{l.feasibilityNotes}</div>}
+                    {canCheckFeasibility && l.feasibilityStatus === "pending" && l.status !== "won" && l.status !== "lost" && (
+                      <form action={confirmFeasibility} className="stack" style={{ gap: 4, marginTop: 6 }}>
+                        <input type="hidden" name="leadId" value={l.id} />
+                        <input className="plain" name="notes" placeholder="Notes (SN/port, distance…)" style={{ fontSize: 12 }} />
+                        <div className="row" style={{ gap: 4 }}>
+                          <button className="btn sm primary" type="submit" name="result" value="available">Available</button>
+                          <button className="btn sm danger" type="submit" name="result" value="not_available">Not available</button>
+                        </div>
+                      </form>
+                    )}
+                  </td>
                   <td>{relTime(l.createdAt)}</td>
                   <td>
                     {l.status !== "won" && l.status !== "lost" && (
@@ -107,11 +126,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                           <button className="btn sm ghost" type="submit">Advance</button>
                         </form>
                         {l.tariff && (
-                          <form action={convertLeadToCustomer}>
-                            <input type="hidden" name="leadId" value={l.id} />
-                            <input type="hidden" name="tariffId" value={l.interestedTariffId ?? ""} />
-                            <button className="btn sm primary" type="submit">Convert</button>
-                          </form>
+                          l.feasibilityStatus === "available" ? (
+                            <form action={convertLeadToCustomer}>
+                              <input type="hidden" name="leadId" value={l.id} />
+                              <input type="hidden" name="tariffId" value={l.interestedTariffId ?? ""} />
+                              <button className="btn sm primary" type="submit">Convert</button>
+                            </form>
+                          ) : (
+                            <button className="btn sm primary" type="button" disabled title="Awaiting fiber team feasibility confirmation">Convert</button>
+                          )
                         )}
                         <form action={updateLeadStatus}>
                           <input type="hidden" name="leadId" value={l.id} />
@@ -123,7 +146,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   </td>
                 </tr>
               ))}
-              {leads.length === 0 && <tr><td colSpan={7} className="empty">No leads match this filter.</td></tr>}
+              {leads.length === 0 && <tr><td colSpan={8} className="empty">No leads match this filter.</td></tr>}
             </tbody>
           </table>
         </div>

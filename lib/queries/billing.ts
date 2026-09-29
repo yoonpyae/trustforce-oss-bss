@@ -27,7 +27,9 @@ export async function listCollections(opts: { q?: string }) {
   const byCustomer = new Map<string, Row>();
   for (const inv of unpaid) {
     const customer = cMap.get(inv.customerId);
-    if (!customer) continue;
+    // Once a customer is marked inactive (suspended past the configured
+    // threshold), stop chasing what they owed — they drop off collections.
+    if (!customer || customer.status === "inactive") continue;
     const existing = byCustomer.get(inv.customerId);
     const owed = inv.amountMmk + inv.taxMmk;
     if (!existing) {

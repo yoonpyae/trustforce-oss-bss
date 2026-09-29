@@ -4,9 +4,11 @@ import { NAV } from "@/components/nav-items";
 import { NavLink } from "@/components/NavLink";
 import { OmniSearch } from "@/components/OmniSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { getSession } from "@/lib/auth-session";
 import { signOut } from "@/lib/actions/auth";
 import { canAccess } from "@/lib/permissions";
+import { getNotificationsForRole } from "@/lib/queries/notifications";
 
 const ROLE_LABEL: Record<string, string> = {
   sysadmin: "System administrator",
@@ -23,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const pathname = (await headers()).get("x-pathname") ?? "/dashboard";
   const allowed = canAccess(session.role, pathname);
   const visibleNav = NAV.map((g) => ({ ...g, items: g.items.filter((item) => canAccess(session.role, item.href)) })).filter((g) => g.items.length > 0);
+  const { rows: notifications, unread } = await getNotificationsForRole(session.role);
 
   return (
     <div className="shell">
@@ -37,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="topbar">
         <OmniSearch />
         <div className="topbar-actions">
+          <NotificationBell notifications={notifications} unread={unread} />
           <ThemeToggle />
           <div className="whoami">
             <b>{session.name}</b>

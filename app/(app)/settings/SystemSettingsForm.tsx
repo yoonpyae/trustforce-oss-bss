@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { updateSystemSettings } from "@/lib/actions/system-settings";
 
-type Settings = { subscriberIdServiceCode: string; subscriberIdDigitCount: number; defaultLocationId: string | null; billingCalculationMode: string; paymentWebhookSecret: string };
+type Settings = { subscriberIdServiceCode: string; subscriberIdDigitCount: number; defaultLocationId: string | null; billingCalculationMode: string; paymentWebhookSecret: string; graceDays: number; inactiveAfterSuspendedDays: number };
 type Location = { id: string; name: string; code: string };
 
 export function SystemSettingsForm({ settings, locations, isSysadmin }: { settings: Settings; locations: Location[]; isSysadmin: boolean }) {
@@ -15,6 +15,8 @@ export function SystemSettingsForm({ settings, locations, isSysadmin }: { settin
       <dl className="defn">
         <dt>Subscriber ID format</dt><dd className="num">{settings.subscriberIdServiceCode}&lt;LOCATION&gt;-{"0".repeat(settings.subscriberIdDigitCount)}</dd>
         <dt>Billing calculation</dt><dd style={{ textTransform: "capitalize" }}>{settings.billingCalculationMode}</dd>
+        <dt>Grace period</dt><dd className="num">{settings.graceDays} days past expiry before auto-suspend</dd>
+        <dt>Inactive after</dt><dd className="num">{settings.inactiveAfterSuspendedDays} days suspended</dd>
       </dl>
     );
   }
@@ -64,6 +66,21 @@ export function SystemSettingsForm({ settings, locations, isSysadmin }: { settin
           </select>
         </div>
       </div>
+      <div className="grid g2">
+        <div className="field">
+          <label>Grace period (days past expiry before auto-suspend)</label>
+          <input name="graceDays" type="number" min={1} max={30} defaultValue={settings.graceDays} />
+        </div>
+        <div className="field">
+          <label>Inactive after (days suspended)</label>
+          <input name="inactiveAfterSuspendedDays" type="number" min={1} max={365} defaultValue={settings.inactiveAfterSuspendedDays} />
+        </div>
+      </div>
+      <p className="hint">
+        A subscriber past expiry beyond the grace period is auto-suspended (service cut, ONU offline); one who
+        stays suspended past the inactive threshold is marked inactive and drops off the collections list. Runs
+        daily via a scheduled job — see <code>/api/cron/lifecycle</code>.
+      </p>
       <button className="btn primary sm" type="submit" style={{ justifySelf: "start" }}>Save system settings</button>
       <p className="hint">
         Payment webhook: <code>POST /api/webhooks/payment</code> with header <code>x-webhook-secret: {settings.paymentWebhookSecret}</code>

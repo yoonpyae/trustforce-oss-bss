@@ -164,6 +164,8 @@ export const systemSettings = pgTable("system_settings", {
   defaultLocationId: text("default_location_id"),
   billingCalculationMode: text("billing_calculation_mode").notNull().default("monthly"), // monthly | daily
   paymentWebhookSecret: text("payment_webhook_secret").notNull().default("demo-webhook-secret"),
+  graceDays: integer("grace_days").notNull().default(7), // days past expiry before auto-suspend
+  inactiveAfterSuspendedDays: integer("inactive_after_suspended_days").notNull().default(120), // days suspended before auto-inactive
 });
 
 export const customers = pgTable("customers", {
@@ -183,8 +185,9 @@ export const customers = pgTable("customers", {
   zone: text("zone").notNull(),
   lat: doublePrecision("lat").notNull(),
   lng: doublePrecision("lng").notNull(),
-  status: text("status").notNull().default("active"), // pending | active | grace | suspended | expired | banned | disabled
+  status: text("status").notNull().default("active"), // pending | active | grace | suspended | expired | inactive | banned | disabled
   customStatus: text("custom_status").notNull().default("customer"), // free-form tag, independent of lifecycle status
+  suspendedAt: timestamp("suspended_at"), // set when auto-suspended past grace; drives the 120-day inactive countdown
   installedDate: timestamp("installed_date").notNull(),
   tariffId: text("tariff_id"),
   expiryDate: timestamp("expiry_date"),
@@ -389,8 +392,32 @@ export const leads = pgTable("leads", {
   notes: text("notes"),
   lostReason: text("lost_reason"),
   convertedCustomerId: text("converted_customer_id"),
+  // Fiber-team confirmation gate: an "uncertain" lead can't be converted to a
+  // subscriber until the fiber/network team confirms port availability and
+  // fiber feasibility. See lib/actions/leads.ts#confirmFeasibility.
+  feasibilityStatus: text("feasibility_status").notNull().default("pending"), // pending | available | not_available
+  feasibilityNotes: text("feasibility_notes"),
+  feasibilityCheckedBy: text("feasibility_checked_by"),
+  feasibilityCheckedAt: timestamp("feasibility_checked_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Internal staff notifications (role-targeted, e.g. "new inquiry needs a
+// feasibility check" to network_ops, or "feasibility confirmed" back to sales)
+// ---------------------------------------------------------------------------
+
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey(),
+  forRole: text("for_role").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),
+  relatedType: text("related_type"),
+  relatedId: text("related_id"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

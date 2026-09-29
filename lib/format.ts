@@ -41,7 +41,7 @@ export function relTime(d: Date | string | null | undefined): string {
 export function statusPillClass(status: string): string {
   const map: Record<string, string> = {
     active: "on", online: "on", paid: "on", resolved: "on", instock: "on",
-    offline: "off", expired: "off", overdue: "off", fault: "off", critical: "off", banned: "off", disabled: "off",
+    offline: "off", expired: "off", overdue: "off", fault: "off", critical: "off", banned: "off", disabled: "off", inactive: "off",
     grace: "warn", degraded: "warn", pending: "warn", major: "warn", attention: "warn",
     suspended: "idle", draft: "idle", minor: "idle", idle: "idle", used: "idle",
   };

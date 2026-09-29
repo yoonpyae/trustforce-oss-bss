@@ -38,6 +38,7 @@ export async function getDashboardMetrics() {
   const suspended = customers.filter((c) => c.status === "suspended").length;
   const expired = customers.filter((c) => c.status === "expired").length;
   const pending = customers.filter((c) => c.status === "pending").length;
+  const inactive = customers.filter((c) => c.status === "inactive").length;
   const expiringSoon = customers.filter((c) => c.status !== "expired" && c.expiryDate && new Date(c.expiryDate) <= in7 && new Date(c.expiryDate) >= now).length;
 
   const online = onus.filter((o) => o.status === "online").length;
@@ -71,7 +72,7 @@ export async function getDashboardMetrics() {
   }
 
   return {
-    total, active, grace, suspended, expired, pending, expiringSoon,
+    total, active, grace, suspended, expired, pending, inactive, expiringSoon,
     online, offline,
     overdueCount: overdue.length, overdueValue,
     collectionRate, mrr,

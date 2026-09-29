@@ -23,8 +23,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // /api/webhooks/** is excluded: those are called by external services (a
-  // payment gateway) with no session cookie, authenticated by their own
-  // shared-secret check instead — see app/api/webhooks/payment/route.ts.
-  matcher: ["/((?!login|api/webhooks|_next/static|_next/image|favicon.ico).*)"],
+  // /api/webhooks/** and /api/cron/** are excluded: those are called by
+  // external services (a payment gateway, Vercel Cron) with no session
+  // cookie, authenticated by their own secret check instead — see
+  // app/api/webhooks/payment/route.ts and app/api/cron/lifecycle/route.ts.
+  matcher: ["/((?!login|api/webhooks|api/cron|_next/static|_next/image|favicon.ico).*)"],
 };

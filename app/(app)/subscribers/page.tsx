@@ -34,7 +34,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
         <input className="grow" type="search" name="q" placeholder="Search name, ID, phone, username…" defaultValue={sp.q ?? ""} />
         <select name="status" defaultValue={sp.status ?? ""}>
           <option value="">All statuses</option>
-          {["pending", "active", "grace", "suspended", "expired", "banned", "disabled"].map((st) => (
+          {["pending", "active", "grace", "suspended", "expired", "inactive", "banned", "disabled"].map((st) => (
             <option key={st} value={st}>{st}</option>
           ))}
         </select>

@@ -13,15 +13,17 @@ export async function updateSystemSettings(formData: FormData) {
   const subscriberIdDigitCount = Math.min(10, Math.max(3, parseInt(String(formData.get("subscriberIdDigitCount") || "6"), 10)));
   const defaultLocationId = String(formData.get("defaultLocationId") || "") || null;
   const billingCalculationMode = String(formData.get("billingCalculationMode")) === "daily" ? "daily" : "monthly";
+  const graceDays = Math.min(30, Math.max(1, parseInt(String(formData.get("graceDays") || "7"), 10)));
+  const inactiveAfterSuspendedDays = Math.min(365, Math.max(1, parseInt(String(formData.get("inactiveAfterSuspendedDays") || "120"), 10)));
 
   await db
     .insert(s.systemSettings)
-    .values({ id: "default", subscriberIdServiceCode, subscriberIdDigitCount, defaultLocationId, billingCalculationMode })
+    .values({ id: "default", subscriberIdServiceCode, subscriberIdDigitCount, defaultLocationId, billingCalculationMode, graceDays, inactiveAfterSuspendedDays })
     .onConflictDoUpdate({
       target: s.systemSettings.id,
-      set: { subscriberIdServiceCode, subscriberIdDigitCount, defaultLocationId, billingCalculationMode },
+      set: { subscriberIdServiceCode, subscriberIdDigitCount, defaultLocationId, billingCalculationMode, graceDays, inactiveAfterSuspendedDays },
     });
-  await logAudit("System settings updated", "system_settings", "default", `ID format ${subscriberIdServiceCode}/${subscriberIdDigitCount}d, billing ${billingCalculationMode}`);
+  await logAudit("System settings updated", "system_settings", "default", `ID format ${subscriberIdServiceCode}/${subscriberIdDigitCount}d, billing ${billingCalculationMode}, grace ${graceDays}d, inactive after ${inactiveAfterSuspendedDays}d suspended`);
 
   revalidatePath("/settings");
   revalidatePath("/subscribers");

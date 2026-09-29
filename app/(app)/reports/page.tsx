@@ -33,7 +33,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="grid g3" style={{ marginBottom: 14 }}>
-        <div className="card kpi"><span className="label">Churn rate</span><span className="value num" style={{ color: "var(--bad)" }}>{churn.churnRate}%</span><span className="foot">{churn.expired} expired · {churn.suspended} suspended of {churn.total}</span></div>
+        <div className="card kpi"><span className="label">Churn rate</span><span className="value num" style={{ color: "var(--bad)" }}>{churn.churnRate}%</span><span className="foot">{churn.expired} expired · {churn.suspended} suspended · {churn.inactive} inactive of {churn.total}</span></div>
         <div className="card kpi"><span className="label">At-risk (expiring ≤3d)</span><span className="value num" style={{ color: "var(--warn)" }}>{churn.atRisk.length}</span></div>
         <div className="card kpi"><span className="label">Resolved tickets w/ MTTR</span><span className="value num">{mttr.reduce((a, m) => a + m.count, 0)}</span></div>
       </div>

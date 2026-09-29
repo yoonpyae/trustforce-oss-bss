@@ -26,9 +26,13 @@ This matters, so it's stated plainly rather than left to be discovered:
 - Helpdesk tickets (kanban), inventory stock and asset-to-customer binding
 - Leads (CRM pipeline) and their conversion into a real, prepaid-first subscriber + ONU + splitter-port booking
   (see below — a converted lead is `pending` until their first invoice is settled)
+- The fiber-team feasibility gate on leads, and the in-app staff notification bell (both real DB rows — see
+  "Lead feasibility & staff notifications" below)
+- The inactive-customer lifecycle (auto-suspend past grace, auto-inactive after a suspended threshold), run
+  daily by a real Vercel Cron job — see "Inactive-customer lifecycle" below
 - Scheduled field appointments (installs/repairs/maintenance/surveys)
 - Staff accounts, the audit trail, messaging campaign records
-- Locations and system settings (subscriber ID format, VLAN inheritance, billing calculation mode)
+- Locations and system settings (subscriber ID format, VLAN inheritance, billing calculation mode, grace/inactive days)
 - The payment webhook endpoint itself (`/api/webhooks/payment`) — real code, real effect on real rows
 
 **Simulated — deterministic, generated from the object's ID and a slow time bucket (see `lib/sim.ts`), not
@@ -170,6 +174,51 @@ Content-Type: application/json
 
 `invoiceId` omitted → treated as a plan renewal for `customerId` (same as the Recharge button, respects the
 billing calculation mode above) instead of settling a specific invoice.
+
+## Lead feasibility & staff notifications
+
+An ISP can confirm a new subscriber two ways: directly on the Subscribers tab (staff has already verified the
+install is possible), or via a **Lead**, for an inquiry where that isn't certain yet:
+
+1. Sales captures the inquiry (`createLead`). This raises a real in-app notification to the `network_ops`
+   role — "New inquiry — feasibility check needed" — surfaced by the notification bell (⚑, top bar) for
+   every signed-in network-ops/sysadmin user.
+2. A network-ops engineer opens Leads (now on their permission list), reviews the zone/address against the
+   ODN map, and confirms **Available** or **Not available** with notes (`confirmFeasibility`). This notifies
+   the `sales` role back with the result.
+3. **Convert** on a lead is disabled — server-enforced, not just hidden — until `feasibilityStatus ===
+   "available"`. Only then does `convertLeadToCustomer` run (booking a real splitter port, provisioning the
+   ONU, and creating the pending-first-payment customer described above).
+
+Notifications are plain DB rows (`notifications` table), targeted by role rather than by individual staff
+member — no push/SMS/email dispatch, matching this project's real-vs-simulated split. A shared "unread" count
+is cleared for the whole role when any one of them opens the bell.
+
+## Inactive-customer lifecycle
+
+Configured in **Settings → System settings** (`graceDays`, default 7; `inactiveAfterSuspendedDays`, default 120):
+
+1. A customer past their plan's expiry date, beyond the grace period, with no payment, is **auto-suspended**
+   — status flips to `suspended`, `suspendedAt` is stamped, and their ONU is set offline (real CoA-style
+   disconnect). This applies whether they arrived at "past expiry, unpaid" as a prepaid renewal or a postpaid
+   invoice going unpaid — both already produce an `expiryDate`/overdue invoice the same way.
+2. A customer who stays suspended past `inactiveAfterSuspendedDays` is marked **`inactive`** — the terminal
+   churn state. Inactive customers drop off the Billing collections list (`lib/queries/billing.ts#listCollections`)
+   — once inactive, their outstanding balance isn't chased further, matching the "don't recalculate before
+   inactive" rule.
+3. Paying an outstanding invoice on a suspended/inactive customer (`settleInvoice`, or a manual Recharge)
+   reconnects them — status back to `active`, `suspendedAt` cleared, ONU back online — a real win-back path.
+
+This runs daily via a real **Vercel Cron** job (`vercel.json` → `/api/cron/lifecycle`, `0 20 * * *` UTC),
+authenticated by the `CRON_SECRET` env var Vercel automatically sends as `Authorization: Bearer …` when
+invoking a Cron Job. Both phases are single batched `UPDATE … RETURNING` statements (not a loop of per-row
+updates) so the job stays fast and within a serverless function's execution limit regardless of how many
+customers are affected on a given day.
+
+**Not built**: automated end-of-month invoice generation for postpaid tariffs (postpaid still needs a manual
+or webhook-triggered invoice today, same as before this feature) — only the suspend/inactive transitions
+themselves are automatic. See the ACS guide's own scope notes for the kind of estimate a full postpaid billing
+engine would need.
 
 See [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) for the object model this was built from, and
 [`lib/schema.ts`](lib/schema.ts) for the actual Drizzle schema.

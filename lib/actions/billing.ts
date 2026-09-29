@@ -20,10 +20,12 @@ export async function settleInvoice(formData: FormData) {
   await db.insert(s.payments).values({ id: "PMT-" + seq, invoiceId, customerId: invoice.customerId, amountMmk: invoice.amountMmk + invoice.taxMmk, method, reconciled: true });
 
   // Settling an overdue invoice fires a CoA reconnect if the customer had lapsed — matches the
-  // "instant CoA re-activation on payment" behaviour described in the TrustForce deck.
+  // "instant CoA re-activation on payment" behaviour described in the TrustForce deck. This
+  // also wins back a suspended/inactive customer, clearing suspendedAt since they're paid up.
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, invoice.customerId)).limit(1);
-  if (customer && (customer.status === "suspended" || customer.status === "expired")) {
-    await db.update(s.customers).set({ status: "active" }).where(eq(s.customers.id, invoice.customerId));
+  if (customer && (customer.status === "suspended" || customer.status === "expired" || customer.status === "inactive")) {
+    await db.update(s.customers).set({ status: "active", suspendedAt: null }).where(eq(s.customers.id, invoice.customerId));
+    await db.update(s.onus).set({ status: "online" }).where(eq(s.onus.customerId, invoice.customerId));
     await logAudit("CoA reconnect", "customer", invoice.customerId, `Auto-reconnect after settling ${invoiceId}`);
   }
   // A "pending" customer (a converted lead, prepaid-first-payment model — see
