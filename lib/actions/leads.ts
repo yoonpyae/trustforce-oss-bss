@@ -134,6 +134,10 @@ export async function convertLeadToCustomer(formData: FormData) {
   const now = new Date();
   const periodEnd = new Date(now.getTime() + tariff.validityDays * DAY_MS);
 
+  // VLAN lives on the pool, not the plan — inherit it from the plan's
+  // suggested default pool at conversion time only.
+  const pool = tariff.ipPoolId ? (await db.select().from(s.ipPools).where(eq(s.ipPools.id, tariff.ipPoolId)).limit(1))[0] : null;
+
   // TrustForce only counts a lead as a real customer once their first payment
   // clears (prepaid-first model) — provision the account and ONU now so the
   // splitter port is reserved and everything is ready, but leave the customer
@@ -151,7 +155,7 @@ export async function convertLeadToCustomer(formData: FormData) {
     lng: lead.lng ?? (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
     status: "pending", installedDate: now, tariffId: tariff.id, expiryDate: null, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase(),
-    locationId: location.id, ipPoolId: tariff.ipPoolId, vlan: tariff.vlan,
+    locationId: location.id, ipPoolId: tariff.ipPoolId, vlan: pool?.vlan ?? null,
   });
   await db.insert(s.onus).values({
     id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:01",

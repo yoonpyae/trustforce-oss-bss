@@ -8,16 +8,22 @@ import { SubscribersTable } from "./SubscribersTable";
 
 export const dynamic = "force-dynamic";
 
-export default async function SubscribersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; zone?: string }> }) {
+export default async function SubscribersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string; zone?: string; tariffId?: string; ipPoolId?: string; vlan?: string }>;
+}) {
   const sp = await searchParams;
+  const vlanFilter = sp.vlan ? parseInt(sp.vlan, 10) : undefined;
   const [customers, zones, tariffs, locations, ipPools, settings] = await Promise.all([
-    listCustomers({ q: sp.q, status: sp.status, zone: sp.zone, limit: 300 }),
+    listCustomers({ q: sp.q, status: sp.status, zone: sp.zone, tariffId: sp.tariffId, ipPoolId: sp.ipPoolId, vlan: vlanFilter, limit: 300 }),
     getZones(),
     db.select().from(s.tariffs),
     listLocations(),
     db.select().from(s.ipPools),
     getSystemSettings(),
   ]);
+  const vlans = [...new Set(ipPools.map((p) => p.vlan).filter((v): v is number => v != null))].sort((a, b) => a - b);
 
   return (
     <>
@@ -48,11 +54,23 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
             <option key={z} value={z}>{z}</option>
           ))}
         </select>
+        <select name="tariffId" defaultValue={sp.tariffId ?? ""}>
+          <option value="">All plans</option>
+          {tariffs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <select name="ipPoolId" defaultValue={sp.ipPoolId ?? ""}>
+          <option value="">All IP pools</option>
+          {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select name="vlan" defaultValue={sp.vlan ?? ""}>
+          <option value="">All VLANs</option>
+          {vlans.map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
         <button className="btn primary sm" type="submit">Filter</button>
-        {(sp.q || sp.status || sp.zone) && <Link href="/subscribers" className="btn sm ghost">Clear</Link>}
+        {(sp.q || sp.status || sp.zone || sp.tariffId || sp.ipPoolId || sp.vlan) && <Link href="/subscribers" className="btn sm ghost">Clear</Link>}
       </form>
 
-      <SubscribersTable customers={customers} tariffs={tariffs} />
+      <SubscribersTable customers={customers} tariffs={tariffs} ipPools={ipPools} filters={sp} />
     </>
   );
 }

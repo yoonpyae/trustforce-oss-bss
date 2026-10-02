@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 
-export async function listCustomers(opts: { q?: string; status?: string; zone?: string; limit?: number }) {
+export async function listCustomers(opts: { q?: string; status?: string; zone?: string; tariffId?: string; ipPoolId?: string; vlan?: number; limit?: number }) {
   const conds = [];
   if (opts.q) {
     const like = `%${opts.q}%`;
@@ -10,6 +10,9 @@ export async function listCustomers(opts: { q?: string; status?: string; zone?: 
   }
   if (opts.status) conds.push(eq(s.customers.status, opts.status));
   if (opts.zone) conds.push(eq(s.customers.zone, opts.zone));
+  if (opts.tariffId) conds.push(eq(s.customers.tariffId, opts.tariffId));
+  if (opts.ipPoolId) conds.push(eq(s.customers.ipPoolId, opts.ipPoolId));
+  if (opts.vlan != null) conds.push(eq(s.customers.vlan, opts.vlan));
 
   const rows = await db
     .select()

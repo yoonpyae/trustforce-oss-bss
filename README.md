@@ -86,8 +86,9 @@ its module list gets an "Access restricted" page instead of the module.
 ```bash
 npm install
 npm run db:push    # sync the Drizzle schema to your Neon database
-npm run db:seed    # deterministic seed: 3 OLTs, 16 DNs, 47 SNs, ~570 subscribers, invoices, tickets…
+npm run db:seed    # deterministic seed: 3 OLTs, 16 DNs, 47 SNs, ~545 subscribers, invoices, tickets…
 npm run dev
+npm test           # integration tests against the same Neon database (see Traffic Plan & IP Pool decoupling)
 ```
 
 Requires a `DATABASE_URL` (and `DATABASE_URL_UNPOOLED` for schema push) in `.env.local` — provisioned
@@ -128,8 +129,9 @@ see below).
 ONU → customer, as a Leaflet map paired with a collapsible OLT/DN/SN layer tree and per-layer visibility toggles
 — the same sidebar-tree-plus-map convention as the ODN deck's KMZ/Google-Earth reference view and Splynx's own
 networking map · Topology & trace (resolve any identifier to its physical path, fault-impact analysis, KML
-export) · Live network (simulated PPPoE sessions, NAS/IP pool/bandwidth-profile inventory) · Alarms (current/
-acknowledged/cleared, escalate to ticket).
+export) · Live network (simulated PPPoE sessions, NAS/IP pool/bandwidth-profile inventory) · **IP pools** (CRUD
+with CIDR-overlap/VLAN-range validation, utilisation and subscriber count, a pool's own detail page with batch
+"move subscribers to another pool") · Alarms (current/acknowledged/cleared, escalate to ticket).
 
 **Operations** — Ticket dashboard (Open → Assigned → In-progress → Resolved kanban, SLA-breach and MTTR tiles) ·
 **Schedule** (field-visit calendar for installs/repairs/maintenance/surveys, technician load, link to a
@@ -164,25 +166,65 @@ Configured in **Settings → System settings**:
 
 ## Traffic Plan & IP Pool decoupling
 
-A Traffic Plan (Tariffs/Plan page) is a bandwidth policy — it no longer binds a subscriber to one fixed IP
-pool or VLAN. Each subscriber carries their own `ipPoolId`/`vlan`, set independently:
+A **Traffic Plan** (`/tariffs`) is a bandwidth/billing policy only. An **IP Pool** (`/ip-pools`) is an address
+resource — it owns its own VLAN, gateway, DNS, zone, type and NAS. Neither is bound to the other; a subscriber
+holds its own independent reference to each:
 
-- **Onboarding**: the New Subscriber form defaults the IP pool to the chosen plan's *suggested* pool, but it's
-  a plain dropdown — pick any pool. The plan's "Default IP pool" field on the Plan page itself is now optional
-  and purely a convenience default; the pre-publish dependency check no longer requires it (only bandwidth
-  profile, NAS, validity and price do).
-- **Changing a subscriber's plan** (individually, or in bulk — see below) only ever updates their bandwidth/
-  pricing/validity. It never touches `ipPoolId` or `vlan`. Same for a renewal/recharge.
-- **Reassigning IP pool/VLAN** is its own action — "Address resource" card on a subscriber's Network & optical
-  tab (`assignIpPool`) — completely independent of what plan they're on.
-- **Individual Traffic Plan change**: unchanged UX (Subscribers → subscriber → Overview tab → Change plan),
-  now decoupled under the hood.
-- **Batch Traffic Plan change**: select any number of subscribers with the checkboxes on the Subscribers list
-  and apply one plan to all of them at once (`batchChangePlan`) — e.g. a bandwidth-tier-wide price change. Each
-  subscriber still gets its own proration invoice if applicable; none of their IP pools or VLANs move.
+```
+Traffic Plan (bandwidth, price,       IP Pool (CIDR, VLAN, gateway,
+validity, billing type, expiry            DNS, zone, NAS, type)
+behaviour, optional allowed-NAS list)
+          \                                      /
+           \                                    /
+            \                                  /
+             v                                v
+                     Subscriber (customers)
+         tariffId  +  ipPoolId  +  vlan (override)  +  managementIp
+         ───────────────────────────────────────────────────────────
+         changePlan/batchChangePlan touch ONLY tariffId.
+         assignIpPool/batchReassignPool touch ONLY ipPoolId + vlan.
+```
 
-Existing subscribers were backfilled once (their `ipPoolId` set to whatever their plan implied at the time)
-so nothing changed for them functionally — only *future* plan changes stop silently moving their pool.
+One plan can now be reused across any number of pools/VLANs — e.g. the seeded "Home Fiber 20" (`TP-102`) plan
+is deliberately spread across three pools (`POOL-RES-A` VLAN 100, `POOL-RES-A2` VLAN 110, `POOL-RES-A3` VLAN
+111) on three different NAS/zones, instead of needing a duplicate plan per VLAN.
+
+- **Onboarding**: plan and IP pool are two independent required-ish choices on the New Subscriber form. The
+  pool dropdown is filtered by the chosen zone (falling back to all active pools if none are scoped to that
+  zone yet) — never by the plan. VLAN defaults from the chosen pool, with a manual override.
+- **A plan change** (individual or batch, see below) only ever updates `tariffId` (bandwidth/price/validity).
+  It never touches `ipPoolId` or `vlan`. Same for a renewal/recharge.
+- **An IP pool/VLAN reassignment** is its own, separate action — the "Address resource" card on a subscriber's
+  Network & optical tab (`assignIpPool`), or a batch move from the Subscribers list / a pool's own detail page
+  (`batchReassignPool`) — completely independent of what plan the subscriber is on. Both log an audit entry per
+  subscriber moved and note that a CoA disconnect/reconnect is needed to pick up the new address (this project
+  has no real RADIUS/CoA packet simulation to actually fire — see "What's real vs. simulated").
+- **Individual Traffic Plan change** adds an effective-date choice (immediately, or at the subscriber's next
+  renewal — tracked via `customers.pendingTariffId`, applied the next time `recharge()` runs) and a proration
+  on/off toggle.
+- **Batch Traffic Plan change** supports three modes from the Subscribers list: (a) checkbox-selected rows,
+  (b) "all subscribers matching the current filter" (status/zone/plan/pool/search — resolved server-side at
+  submit time, not limited to whatever page of rows the browser had loaded), and (c) "all subscribers on plan
+  X" (the same filter mode, reached via the subscriber count on the Plan page). (b) and (c) show a preview
+  (count, sample, average price delta) before a required confirmation step, then return a result summary
+  (succeeded/skipped-with-reason). There's no background job queue in this stack — a proration-off batch is a
+  single batched `UPDATE`, so it scales to any match count; a prorated batch needs per-subscriber math and is
+  capped at 300 matches per run (turn proration off, or narrow the filter, for a larger one).
+- **Allowed NAS** on a plan is optional and many-to-many (`tariff_allowed_nas`) — informational/advisory for
+  provisioning, not a runtime binding. A subscriber's actual NAS always comes from their pool (`ip_pools.routerId`).
+
+**Migration**: `npm run db:migrate:plan-pool` (`scripts/migrate-plan-pool-decouple.ts`) copied each plan's VLAN
+onto its matching pool, then backfilled every subscriber's own `ipPoolId`/`vlan` from their plan wherever their
+own value was still null — before `tariffs.vlan`/`tariffs.nasId` were dropped — so no existing subscriber's
+pool, VLAN or IP changed. It's idempotent (every write is guarded by `IS NULL`) and logs one audit entry per
+backfilled subscriber; see `tests/plan-pool-decoupling.test.ts` for a test exercising that idempotency directly.
+
+**Tests**: `npm test` (Vitest) runs real integration tests against this project's Neon dev database — the
+same way every other verification in this codebase works, never mocked — covering: a plan change leaves
+pool/VLAN/IP unchanged (individual, batch, batch-by-filter, and across a scheduled renewal); a pool change
+leaves the plan unchanged; batch operations are idempotent on a second run; CIDR overlap validation; and a pool
+can't be deleted while subscribers are assigned to it. Each test creates and tears down its own `TEST-`
+prefixed fixtures, never touching seeded demo data.
 
 ## Payment gateway webhook
 

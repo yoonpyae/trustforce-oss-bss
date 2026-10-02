@@ -9,7 +9,7 @@ export const NAV: NavGroup[] = [
       { href: "/leads", label: "Leads", icon: "✦" },
       { href: "/subscribers", label: "Subscribers", icon: "☰" },
       { href: "/billing", label: "Billing & finance", icon: "฿" },
-      { href: "/tariffs", label: "Plan", icon: "▤" },
+      { href: "/tariffs", label: "Traffic Plan", icon: "▤" },
     ],
   },
   {
@@ -18,6 +18,7 @@ export const NAV: NavGroup[] = [
       { href: "/odn", label: "Networking map", icon: "⌬" },
       { href: "/topology", label: "Topology & trace", icon: "⌖" },
       { href: "/network", label: "Live network", icon: "⟲" },
+      { href: "/ip-pools", label: "IP pools", icon: "▥" },
       { href: "/alarms", label: "Alarms", icon: "▲" },
     ],
   },

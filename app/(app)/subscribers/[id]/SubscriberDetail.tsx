@@ -9,7 +9,7 @@ import type { getCustomerDetail } from "@/lib/queries/customers";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getCustomerDetail>>>;
 type Tariff = { id: string; name: string; priceMmk: number; validityDays: number; accountType: string };
-type Pool = { id: string; name: string; rangeCidr: string };
+type Pool = { id: string; name: string; rangeCidr: string; vlan: number | null };
 
 const TABS = ["Overview", "Billing", "Network & optical", "Support"] as const;
 
@@ -17,6 +17,8 @@ export function SubscriberDetail({ detail, tariffs, ipPools }: { detail: Detail;
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
   const [ticketError, setTicketError] = useState<string | null>(null);
   const c = detail.customer;
+  const [reassignPoolId, setReassignPoolId] = useState(c.ipPoolId ?? "");
+  const [reassignVlan, setReassignVlan] = useState(c.vlan != null ? String(c.vlan) : "");
 
   return (
     <>
@@ -113,15 +115,27 @@ export function SubscriberDetail({ detail, tariffs, ipPools }: { detail: Detail;
                       <button className="btn sm" type="submit">Extend</button>
                     </form>
 
-                    <form action={changePlan} className="row">
+                    <form action={changePlan} className="stack" style={{ gap: 6 }}>
                       <input type="hidden" name="customerId" value={c.id} />
-                      <select name="tariffId" className="plain" defaultValue="" style={{ flex: 1 }}>
+                      <select name="tariffId" className="plain" defaultValue="" required>
                         <option value="" disabled>Change plan to…</option>
                         {tariffs.filter((t) => t.accountType === c.accountType).map((t) => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>
-                      <button className="btn sm" type="submit">Change plan</button>
+                      <div className="row" style={{ gap: 8 }}>
+                        <select name="effective" className="plain" defaultValue="immediate" style={{ flex: 1 }}>
+                          <option value="immediate">Effective immediately</option>
+                          <option value="renewal">Effective at next renewal</option>
+                        </select>
+                        <label className="row" style={{ gap: 4, fontSize: 13, cursor: "pointer" }}>
+                          <input type="checkbox" name="proration" value="on" defaultChecked style={{ width: "auto" }} /> Proration
+                        </label>
+                        <button className="btn sm" type="submit">Change plan</button>
+                      </div>
+                      {c.pendingTariffId && (
+                        <span className="hint">A plan change to {tariffs.find((t) => t.id === c.pendingTariffId)?.name ?? c.pendingTariffId} is scheduled for the next renewal.</span>
+                      )}
                     </form>
 
                     <div className="row">
@@ -246,11 +260,19 @@ export function SubscriberDetail({ detail, tariffs, ipPools }: { detail: Detail;
               style={{ marginTop: 8, gap: 6 }}
             >
               <input type="hidden" name="customerId" value={c.id} />
-              <select name="ipPoolId" className="plain" defaultValue={c.ipPoolId ?? ""} style={{ flex: 1 }}>
+              <select
+                name="ipPoolId" className="plain" style={{ flex: 1 }}
+                value={reassignPoolId}
+                onChange={(e) => {
+                  setReassignPoolId(e.target.value);
+                  const pool = ipPools.find((p) => p.id === e.target.value);
+                  setReassignVlan(pool?.vlan != null ? String(pool.vlan) : "");
+                }}
+              >
                 <option value="">No pool</option>
-                {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}{p.vlan != null ? ` (VLAN ${p.vlan})` : ""}</option>)}
               </select>
-              <input className="plain num" name="vlan" type="number" min={1} max={4094} defaultValue={c.vlan ?? ""} placeholder="VLAN" style={{ width: 90 }} />
+              <input className="plain num" name="vlan" type="number" min={1} max={4094} value={reassignVlan} onChange={(e) => setReassignVlan(e.target.value)} placeholder="VLAN" style={{ width: 90 }} />
               <button className="btn sm primary" type="submit">Reassign</button>
             </form>
           </div>

@@ -5,7 +5,7 @@ import { addCustomer } from "@/lib/actions/customers";
 
 type Tariff = { id: string; name: string; priceMmk: number; accountType: string };
 type Location = { id: string; name: string; code: string; nextSequence: number };
-type Pool = { id: string; name: string };
+type Pool = { id: string; name: string; zone: string | null; vlan: number | null; status: string };
 
 function generatePassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -25,11 +25,19 @@ export function AddCustomerForm({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [locationId, setLocationId] = useState("");
+  const [zone, setZone] = useState("");
 
   const previewLocation = locations.find((l) => l.id === (locationId || defaultLocationId));
   const idPreview = previewLocation
     ? `${serviceCode}${previewLocation.code}-${String(previewLocation.nextSequence).padStart(digitCount, "0")}`
     : null;
+
+  const activePools = ipPools.filter((p) => p.status === "active");
+  const zoneMatchedPools = zone ? activePools.filter((p) => p.zone === zone) : activePools;
+  // The pool picker is filtered by zone (not by plan) — if nothing in this
+  // zone has a pool assigned yet, fall back to showing every active pool
+  // rather than blocking onboarding.
+  const poolOptions = zoneMatchedPools.length > 0 ? zoneMatchedPools : activePools;
 
   return (
     <>
@@ -128,7 +136,7 @@ export function AddCustomerForm({
                   </div>
                   <div className="field">
                     <label>Zone</label>
-                    <select name="zone" required defaultValue="">
+                    <select name="zone" required value={zone} onChange={(e) => setZone(e.target.value)}>
                       <option value="" disabled>Select zone…</option>
                       {zones.map((z) => <option key={z} value={z}>{z}</option>)}
                     </select>
@@ -157,9 +165,12 @@ export function AddCustomerForm({
                     <label>IP pool</label>
                     <select name="ipPoolId" defaultValue="">
                       <option value="">Use plan&rsquo;s default pool</option>
-                      {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {poolOptions.map((p) => <option key={p.id} value={p.id}>{p.name}{p.vlan != null ? ` (VLAN ${p.vlan})` : ""}</option>)}
                     </select>
-                    <span className="hint">Independent of the plan — changing the plan later never moves this.</span>
+                    <span className="hint">
+                      Filtered by zone, independent of the plan — changing the plan later never moves this.
+                      {zone && zoneMatchedPools.length === 0 && " No pool is scoped to this zone yet, showing all active pools."}
+                    </span>
                   </div>
                 </div>
                 <div className="grid g2">

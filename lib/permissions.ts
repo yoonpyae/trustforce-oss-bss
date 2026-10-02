@@ -8,7 +8,7 @@ export const ROLE_MODULES: Record<Role, string[]> = {
   sysadmin: ["*"],
   sales: ["/leads", "/subscribers", "/helpdesk", "/schedule", "/messaging"],
   cashier: ["/billing", "/subscribers"],
-  network_ops: ["/odn", "/topology", "/network", "/alarms", "/tariffs", "/helpdesk", "/schedule", "/inventory", "/leads"],
+  network_ops: ["/odn", "/topology", "/network", "/ip-pools", "/alarms", "/tariffs", "/helpdesk", "/schedule", "/inventory", "/leads"],
   management: ["/billing", "/reports"],
 };
 

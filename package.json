@@ -10,7 +10,9 @@
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx --env-file=.env.local scripts/seed.ts"
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "db:migrate:plan-pool": "tsx --env-file=.env.local scripts/migrate-plan-pool-decouple.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
@@ -28,6 +30,7 @@
     "@types/react-dom": "^19.0.2",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.3"
   }
 }

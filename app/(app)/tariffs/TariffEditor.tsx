@@ -8,8 +8,8 @@ type Pool = { id: string; name: string };
 type Nas = { id: string; name: string };
 type Tariff = {
   id: string; name: string; status: string; billingType: string; accountType: string;
-  priceMmk: number; validityDays: number; bandwidthProfileId: string; ipPoolId: string | null; nasId: string; expiredBehavior: string;
-  vlan: number | null;
+  priceMmk: number; validityDays: number; bandwidthProfileId: string; ipPoolId: string | null; expiredBehavior: string;
+  allowedNasIds?: string[];
 };
 
 export function TariffEditor({
@@ -92,18 +92,19 @@ export function TariffEditor({
                       per subscriber and never change on a plan change.</span>
                   </div>
                   <div className="field">
-                    <label>NAS</label>
-                    <select name="nasId" defaultValue={tariff?.nasId ?? ""} required>
-                      <option value="" disabled>Select…</option>
-                      {nasDevices.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
-                    </select>
+                    <label>Allowed NAS</label>
+                    <div className="stack" style={{ gap: 4, maxHeight: 110, overflow: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", padding: 8 }}>
+                      {nasDevices.map((n) => (
+                        <label key={n.id} className="row" style={{ gap: 6, cursor: "pointer", fontSize: 13 }}>
+                          <input type="checkbox" name="allowedNasIds" value={n.id} defaultChecked={tariff?.allowedNasIds?.includes(n.id)} style={{ width: "auto" }} />
+                          {n.name}
+                        </label>
+                      ))}
+                    </div>
+                    <span className="hint">None checked = allowed on any NAS. A subscriber&rsquo;s actual NAS always comes from their IP pool.</span>
                   </div>
                 </div>
-                <div className="grid g3">
-                  <div className="field">
-                    <label>VLAN</label>
-                    <input name="vlan" type="number" min={1} max={4094} defaultValue={tariff?.vlan ?? ""} placeholder="Optional" />
-                  </div>
+                <div className="grid g2">
                   <div className="field">
                     <label>Expiry behaviour</label>
                     <select name="expiredBehavior" defaultValue={tariff?.expiredBehavior ?? "suspend"}>

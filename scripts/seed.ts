@@ -40,13 +40,25 @@ const BANDWIDTHS = [
   { id: "BW-500", name: "Dedicated 500M", down: 500, up: 500, burst: null, priority: 1 },
 ];
 
+// Three of these (RES-A / RES-A2 / RES-A3) all serve the SAME Traffic Plan
+// (TP-102, "Home Fiber 20") on three different VLANs/zones/NAS — the
+// decoupled model's whole point: one bandwidth policy, many address
+// resources, instead of a duplicate plan per VLAN.
 const IP_POOLS = [
-  { id: "POOL-RES-A", name: "Residential A", range: "10.20.0.2/21", nas: "NAS-CORE-01" },
-  { id: "POOL-RES-B", name: "Residential B", range: "10.21.0.2/21", nas: "NAS-CORE-01" },
-  { id: "POOL-BIZ", name: "Business CGNAT", range: "10.40.0.2/22", nas: "NAS-CORE-02" },
-  { id: "POOL-STATIC", name: "Public /24 block", range: "103.86.14.2/24", nas: "NAS-CORE-02" },
-  { id: "POOL-HOTSPOT", name: "Hotspot captive", range: "172.22.0.2/22", nas: "NAS-EDGE-03" },
+  { id: "POOL-RES-A", name: "Residential A", range: "10.20.0.2/21", nas: "NAS-CORE-01", vlan: 100, zone: "Hlaing", type: "dynamic", gateway: "10.20.0.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-RES-A2", name: "Residential A — Zone 2", range: "10.22.0.2/21", nas: "NAS-CORE-01", vlan: 110, zone: "Kamayut", type: "dynamic", gateway: "10.22.0.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-RES-A3", name: "Residential A — Zone 3", range: "10.23.0.2/21", nas: "NAS-EDGE-03", vlan: 111, zone: "Mayangone", type: "dynamic", gateway: "10.23.0.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-RES-B", name: "Residential B", range: "10.21.0.2/21", nas: "NAS-CORE-01", vlan: 101, zone: "Insein", type: "dynamic", gateway: "10.21.0.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-BIZ", name: "Business CGNAT", range: "10.40.0.2/22", nas: "NAS-CORE-02", vlan: 200, zone: "Kamayut", type: "cgnat", gateway: "10.40.0.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-STATIC", name: "Public /24 block", range: "103.86.14.2/24", nas: "NAS-CORE-02", vlan: 201, zone: "Kamayut", type: "static", gateway: "103.86.14.1", dns: "1.1.1.1,8.8.8.8" },
+  { id: "POOL-HOTSPOT", name: "Hotspot captive", range: "172.22.0.2/22", nas: "NAS-EDGE-03", vlan: null, zone: null, type: "dynamic", gateway: null, dns: null },
 ];
+
+// TP-102 ("Home Fiber 20") subscribers are spread across these three pools
+// instead of all landing on one — the seed-time demonstration of plan/pool
+// decoupling. Every other plan keeps a single suggested default pool.
+const MULTI_POOL_TARIFF_ID = "TP-102";
+const MULTI_POOLS = ["POOL-RES-A", "POOL-RES-A2", "POOL-RES-A3"];
 
 const NAS_DEVICES = [
   { id: "NAS-CORE-01", name: "Hlaing Core BNG", ip: "10.10.0.1", type: "mikrotik" },
@@ -56,13 +68,13 @@ const NAS_DEVICES = [
 ];
 
 const TARIFFS = [
-  { id: "TP-101", name: "Home Fiber 10", bw: "BW-10", price: 18000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal", vlan: 100 },
-  { id: "TP-102", name: "Home Fiber 20", bw: "BW-20", price: 25000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal", vlan: 100 },
-  { id: "TP-103", name: "Home Fiber 30", bw: "BW-30", price: 33000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal", vlan: 101 },
-  { id: "TP-104", name: "Home Fiber 50", bw: "BW-50", price: 45000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal", vlan: 101 },
-  { id: "TP-201", name: "SME Fiber 100", bw: "BW-100", price: 95000, cycle: "postpaid", days: 30, pool: "POOL-BIZ", segment: "business", vlan: 200 },
-  { id: "TP-202", name: "Business Static 200", bw: "BW-200", price: 185000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business", vlan: 201 },
-  { id: "TP-203", name: "Dedicated Line 500", bw: "BW-500", price: 620000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business", vlan: 202 },
+  { id: "TP-101", name: "Home Fiber 10", bw: "BW-10", price: 18000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal" },
+  { id: "TP-102", name: "Home Fiber 20", bw: "BW-20", price: 25000, cycle: "prepaid", days: 30, pool: "POOL-RES-A", segment: "personal" },
+  { id: "TP-103", name: "Home Fiber 30", bw: "BW-30", price: 33000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal" },
+  { id: "TP-104", name: "Home Fiber 50", bw: "BW-50", price: 45000, cycle: "prepaid", days: 30, pool: "POOL-RES-B", segment: "personal" },
+  { id: "TP-201", name: "SME Fiber 100", bw: "BW-100", price: 95000, cycle: "postpaid", days: 30, pool: "POOL-BIZ", segment: "business" },
+  { id: "TP-202", name: "Business Static 200", bw: "BW-200", price: 185000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business" },
+  { id: "TP-203", name: "Dedicated Line 500", bw: "BW-500", price: 620000, cycle: "postpaid", days: 30, pool: "POOL-STATIC", segment: "business" },
 ];
 
 const OLT_DEF = [
@@ -92,7 +104,7 @@ async function main() {
     s.inventoryItems, s.vendors, s.appointments,
     s.leads, s.tickets, s.vouchers, s.payments, s.invoices, s.onus, s.splitterNodes,
     s.distributionNodes, s.fibers, s.ponPorts, s.olts, s.customers, s.tariffs, s.nasDevices,
-    s.ipPools, s.bandwidthProfiles, s.staff, s.systemSettings, s.locations, s.notifications,
+    s.ipPools, s.bandwidthProfiles, s.staff, s.systemSettings, s.locations, s.notifications, s.tariffAllowedNas,
   ]) {
     await db.execute(sql`TRUNCATE TABLE ${table} CASCADE`);
   }
@@ -104,7 +116,10 @@ async function main() {
     }))
   );
 
-  await db.insert(s.ipPools).values(IP_POOLS.map((p) => ({ id: p.id, name: p.name, rangeCidr: p.range, routerId: p.nas })));
+  await db.insert(s.ipPools).values(IP_POOLS.map((p) => ({
+    id: p.id, name: p.name, rangeCidr: p.range, routerId: p.nas,
+    vlan: p.vlan, zone: p.zone, type: p.type, gateway: p.gateway, dns: p.dns,
+  })));
 
   await db.insert(s.nasDevices).values(
     NAS_DEVICES.map((n) => ({ id: n.id, name: n.name, ip: n.ip, type: n.type, linkedOltId: OLT_DEF.find((o) => o.id.endsWith("1") && n.id === "NAS-CORE-01") ? "OLT-01" : null }))
@@ -114,7 +129,7 @@ async function main() {
     TARIFFS.map((t) => ({
       id: t.id, name: t.name, status: "active", billingType: t.cycle, accountType: t.segment,
       priceMmk: t.price, validityDays: t.days, bandwidthProfileId: t.bw,
-      ipPoolId: t.pool, nasId: IP_POOLS.find((p) => p.id === t.pool)!.nas, expiredBehavior: "suspend", vlan: t.vlan,
+      ipPoolId: t.pool, expiredBehavior: "suspend", // suggested default only — VLAN/NAS now live on the pool
     }))
   );
 
@@ -252,6 +267,11 @@ async function main() {
         : status === "grace" ? NOW - int(1, 4) * DAY_MS
         : NOW + int(1, 29) * DAY_MS;
 
+      // One plan (TP-102) is deliberately spread across three pools/VLANs —
+      // see MULTI_POOLS above — everything else keeps its single suggested pool.
+      const assignedPoolId = tariff.id === MULTI_POOL_TARIFF_ID ? pick(MULTI_POOLS) : tariff.pool;
+      const assignedPool = IP_POOLS.find((p) => p.id === assignedPoolId)!;
+
       const email = (isBiz ? name.toLowerCase().replace(/[^a-z]+/g, ".") : "sub" + cusSeq) + "@example.mm";
       const streetNo = int(1, 240), streetNth = int(1, 12);
       const isStaticPool = tariff.pool === "POOL-STATIC";
@@ -278,7 +298,7 @@ async function main() {
         managementIp: isStaticPool ? "103.86.14." + (2 + (cusSeq % 250)) : null,
         useOwnRouter: chance(isBiz ? 0.05 : 0.15),
         referredBy: pick(referralPool),
-        locationId: "LOC-YGN", ipPoolId: tariff.ipPoolId, vlan: tariff.vlan,
+        locationId: "LOC-YGN", ipPoolId: assignedPool.id, vlan: assignedPool.vlan,
       });
 
       onuRows.push({

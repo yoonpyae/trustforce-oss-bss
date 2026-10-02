@@ -27,7 +27,20 @@ export const ipPools = pgTable("ip_pools", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   rangeCidr: text("range_cidr").notNull(),
+  // The pool's NAS — kept under its original column name to avoid an
+  // ambiguous rename in drizzle-kit, but this is "nasId" in every other
+  // sense: it's an FK-by-convention into nas_devices, and the authoritative
+  // source for which NAS a subscriber's session is attributed to (see
+  // lib/queries/network.ts) now that this no longer comes from the plan.
   routerId: text("router_id").notNull(),
+  // VLAN now lives here, not on the plan — a Traffic Plan can be reused
+  // across many pools/VLANs; a pool belongs to exactly one VLAN.
+  vlan: integer("vlan"),
+  gateway: text("gateway"),
+  dns: text("dns"), // comma-separated, e.g. "1.1.1.1,8.8.8.8"
+  zone: text("zone"), // e.g. "Hlaing" — used to filter the pool picker at onboarding
+  type: text("type").notNull().default("dynamic"), // dynamic | static | cgnat | public
+  status: text("status").notNull().default("active"), // active | retired — a retired pool can't take new assignments
 });
 
 export const nasDevices = pgTable("nas_devices", {
@@ -139,13 +152,23 @@ export const tariffs = pgTable("tariffs", {
   priceMmk: integer("price_mmk").notNull(),
   validityDays: integer("validity_days").notNull(),
   bandwidthProfileId: text("bandwidth_profile_id").notNull(),
-  // Decoupled from a hard requirement (see customers.ipPoolId): this is now only
-  // a suggested default offered at onboarding, not a binding assignment — a plan
-  // change never touches a customer's actual IP pool. Same for vlan below.
+  // A suggested default offered at onboarding only, not a binding assignment —
+  // a plan change never touches a customer's actual IP pool. VLAN and NAS
+  // used to live here too; VLAN now lives on ip_pools, and NAS is an optional
+  // many-to-many via tariffAllowedNas below (migrated by
+  // scripts/_migrate-plan-pool-decouple.ts).
   ipPoolId: text("ip_pool_id"),
-  nasId: text("nas_id").notNull(),
-  vlan: integer("vlan"),
   expiredBehavior: text("expired_behavior").notNull().default("suspend"), // suspend | disable | grace
+});
+
+// Optional many-to-many: which NAS devices a plan is allowed to be
+// provisioned on. Empty (no rows for a tariffId) = allowed everywhere.
+// Informational/advisory at assignment time, not a hard runtime binding —
+// a subscriber's actual NAS always comes from their pool (ip_pools.routerId).
+export const tariffAllowedNas = pgTable("tariff_allowed_nas", {
+  id: text("id").primaryKey(),
+  tariffId: text("tariff_id").notNull(),
+  nasId: text("nas_id").notNull(),
 });
 
 // Regions/branches a subscriber ID's location segment is drawn from (System
@@ -197,6 +220,9 @@ export const customers = pgTable("customers", {
   suspendedAt: timestamp("suspended_at"), // set when auto-suspended past grace; drives the 120-day inactive countdown
   installedDate: timestamp("installed_date").notNull(),
   tariffId: text("tariff_id"),
+  // A plan change scheduled for "at next renewal" instead of immediately —
+  // applied by recharge() when it next runs, then cleared. See changePlan.
+  pendingTariffId: text("pending_tariff_id"),
   expiryDate: timestamp("expiry_date"),
   balanceMmk: integer("balance_mmk").notNull().default(0),
   snId: text("sn_id"),

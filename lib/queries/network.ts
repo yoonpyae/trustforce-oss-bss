@@ -27,12 +27,13 @@ export async function getNetworkOverview(limit = 80) {
   // their plan — since IP pool and Traffic Plan are decoupled.
   const poolUsage = ipPools.map((p) => ({ pool: p, used: customers.filter((c) => c.ipPoolId === p.id).length }));
 
+  // A subscriber's NAS comes from their IP pool (ip_pools.routerId) — never
+  // from their plan — since a pool, not a bandwidth policy, is what actually
+  // terminates on a given NAS/BNG.
+  const poolToNas = new Map(ipPools.map((p) => [p.id, p.routerId]));
   const nasSessions = nasDevices.map((n) => ({
     nas: n,
-    sessions: customers.filter((c) => {
-      const t = c.tariffId ? tariffMap.get(c.tariffId) : undefined;
-      return t?.nasId === n.id;
-    }).length,
+    sessions: customers.filter((c) => c.ipPoolId && poolToNas.get(c.ipPoolId) === n.id).length,
   }));
 
   return { nasDevices: nasSessions, ipPools: poolUsage, bandwidthProfiles, sessions };
