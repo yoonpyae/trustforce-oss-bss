@@ -113,12 +113,16 @@ out from one combined admin home.
 **Business** — Dashboard (live KPIs, collections chart, weak-point table, shortcut widgets into Leads/Schedule/
 Tickets/Inventory) · **Leads** (CRM pipeline for new inquiries — source/status funnel, convert a qualified lead
 straight into a provisioned subscriber, which books a real splitter port and ONU but leaves them `pending` —
-not a real active customer — until their first invoice is settled) · Subscribers (360° view: overview, billing,
+not a real active customer — until their first invoice is settled; a lead's city/township/lat/lng, if recorded,
+carries straight through to the provisioned subscriber) · Subscribers (360° view: overview, billing,
 network & optical, support; recharge, wallet top-up, proration'd plan change, grace extension, onboarding that
-books a free splitter port) · Billing & finance dashboard (revenue trend, payment-method mix, a **collections**
-list of who currently owes money — pending first payments and overdue renewals, oldest due date first, no
-status tabs — invoices, payments, vouchers) · Tariffs (plan editor with the pre-publish dependency check:
-bandwidth profile + IP pool + NAS + validity + expiry behaviour).
+books a free splitter port, with a live next-subscriber-ID preview once a location is chosen) · **Billing &
+finance** — Dashboard (revenue trend, payment-method mix, a **collections** list of who currently owes money —
+pending first payments and overdue renewals, oldest due date first, no status tabs), a dedicated **Invoices**
+sub-page (the full ledger, filterable by city/plan/status, each row opening an extensive detail view with its
+linked customer and payment history), and Vouchers · Tariffs (plan editor with the pre-publish dependency
+check: bandwidth profile + NAS + validity + expiry behaviour — IP pool is a decoupled onboarding suggestion,
+see below).
 
 **Fibre network** — **Networking map**: OLT → PON port → feeder fibre → DN 1:4 → distribution fibre → SN 1:16 →
 ONU → customer, as a Leaflet map paired with a collapsible OLT/DN/SN layer tree and per-layer visibility toggles
@@ -143,10 +147,13 @@ Configured in **Settings → System settings**:
 
 - **Subscriber ID prefix & formatting**: new subscriber IDs are `{serviceCode}{location code}-{sequence}`, e.g.
   `TFYGN-000123` — the service code and digit count are set here, the location segment comes from the
-  **Locations** table (add more branches/regions there, e.g. Mandalay/`MDY`, each with its own counter). A
-  subscriber's ID is generated once at onboarding and is not editable afterwards. This only applies going
-  forward — the ~550 seeded demo subscribers keep their original `CUS-0001`-style IDs, matching how a real
-  system would roll the new scheme out without renumbering existing accounts.
+  **Locations** table (add more branches/regions there, e.g. Mandalay/`MDY`, each with its own counter, an
+  optional starting sequence number for a branch being migrated from an old system, and optional city/township/
+  lat/lng reference coordinates for that branch). A subscriber's ID is generated once at onboarding and is not
+  editable afterwards. This only applies going forward — the ~550 seeded demo subscribers keep their original
+  `CUS-0001`-style IDs, matching how a real system would roll the new scheme out without renumbering existing
+  accounts. The New Subscriber form shows a live preview of the next ID once a location is picked (a preview,
+  not a reservation — the real ID is still assigned atomically on save).
 - **VLAN**: a subscriber's own address-resource assignment (see "Traffic Plan & IP Pool decoupling" below) — a
   plan can carry a *suggested* VLAN offered as the default at onboarding only, never re-applied afterwards.
 - **Billing calculation mode**: `monthly` (default) always charges a plan's full fee on renewal. `daily`
@@ -202,9 +209,10 @@ billing calculation mode above) instead of settling a specific invoice.
 An ISP can confirm a new subscriber two ways: directly on the Subscribers tab (staff has already verified the
 install is possible), or via a **Lead**, for an inquiry where that isn't certain yet:
 
-1. Sales captures the inquiry (`createLead`). This raises a real in-app notification to the `network_ops`
-   role — "New inquiry — feasibility check needed" — surfaced by the notification bell (⚑, top bar) for
-   every signed-in network-ops/sysadmin user.
+1. Sales captures the inquiry (`createLead`), recording city/township/lat/lng alongside the existing zone/
+   address, so the fiber team is reviewing a real pinpoint location, not just a zone name. This raises a real
+   in-app notification to the `network_ops` role — "New inquiry — feasibility check needed" — surfaced by the
+   notification bell (⚑, top bar) for every signed-in network-ops/sysadmin user.
 2. A network-ops engineer opens Leads (now on their permission list), reviews the zone/address against the
    ODN map, and confirms **Available** or **Not available** with notes (`confirmFeasibility`). This notifies
    the `sales` role back with the result.

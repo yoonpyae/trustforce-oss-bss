@@ -94,7 +94,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                 <tr key={l.id}>
                   <td><b>{l.fullName}</b><div className="hint num">{l.id} · {l.phone}</div></td>
                   <td>{l.source}</td>
-                  <td>{l.zone ?? "—"}</td>
+                  <td>
+                    {l.zone ?? "—"}
+                    {(l.township || l.city) && <div className="hint">{[l.township, l.city].filter(Boolean).join(", ")}</div>}
+                    {l.lat != null && l.lng != null && <div className="hint num">{l.lat.toFixed(4)}, {l.lng.toFixed(4)}</div>}
+                  </td>
                   <td>{l.tariff?.name ?? "—"}</td>
                   <td>
                     <Pill status={l.status === "won" ? "active" : l.status === "lost" ? "expired" : l.status} />

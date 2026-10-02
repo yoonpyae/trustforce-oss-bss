@@ -4,7 +4,7 @@ import { useState } from "react";
 import { addCustomer } from "@/lib/actions/customers";
 
 type Tariff = { id: string; name: string; priceMmk: number; accountType: string };
-type Location = { id: string; name: string; code: string };
+type Location = { id: string; name: string; code: string; nextSequence: number };
 type Pool = { id: string; name: string };
 
 function generatePassword() {
@@ -14,11 +14,22 @@ function generatePassword() {
   return out;
 }
 
-export function AddCustomerForm({ zones, tariffs, locations, ipPools }: { zones: string[]; tariffs: Tariff[]; locations: Location[]; ipPools: Pool[] }) {
+export function AddCustomerForm({
+  zones, tariffs, locations, ipPools, defaultLocationId, serviceCode, digitCount,
+}: {
+  zones: string[]; tariffs: Tariff[]; locations: Location[]; ipPools: Pool[];
+  defaultLocationId: string | null; serviceCode: string; digitCount: number;
+}) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [locationId, setLocationId] = useState("");
+
+  const previewLocation = locations.find((l) => l.id === (locationId || defaultLocationId));
+  const idPreview = previewLocation
+    ? `${serviceCode}${previewLocation.code}-${String(previewLocation.nextSequence).padStart(digitCount, "0")}`
+    : null;
 
   return (
     <>
@@ -100,18 +111,20 @@ export function AddCustomerForm({ zones, tariffs, locations, ipPools }: { zones:
                 </div>
                 <div className="grid g2">
                   <div className="field"><label>Identification (NRC / registration no.)</label><input name="nationalId" /></div>
-                  <div className="field"><label>Bank account</label><input name="bankAccount" /></div>
+                  <div />
                 </div>
 
                 <h4 className="hint" style={{ textTransform: "uppercase", letterSpacing: ".6px", marginTop: 4 }}>Address & location</h4>
                 <div className="grid g2">
                   <div className="field">
                     <label>Location (subscriber ID prefix)</label>
-                    <select name="locationId" defaultValue="">
+                    <select name="locationId" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
                       <option value="">Use system default</option>
                       {locations.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.code})</option>)}
                     </select>
-                    <span className="hint">Determines the ID prefix — set once, not editable after creation.</span>
+                    <span className="hint">
+                      {idPreview ? <>Next ID: <b className="num">{idPreview}</b> (preview — confirmed on save)</> : "Determines the ID prefix — set once, not editable after creation."}
+                    </span>
                   </div>
                   <div className="field">
                     <label>Zone</label>

@@ -8,6 +8,7 @@ import { Pill } from "@/components/Pill";
 import { mmk, dateStr, dateTimeStr } from "@/lib/format";
 import { settleInvoice } from "@/lib/actions/billing";
 import { BarChart, Donut } from "@/components/Charts";
+import { BillingTabs } from "@/components/BillingTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const [collections, kpis, recentInvoices, revenue, methodBreakdown] = await Promise.all([
     listCollections({ q: sp.q }),
     getBillingKpis(),
-    db.select().from(s.invoices).orderBy(desc(s.invoices.issuedDate)).limit(20),
+    db.select().from(s.invoices).orderBy(desc(s.invoices.issuedDate)).limit(8),
     getRevenueByMonth(12),
     getPaymentMethodBreakdown(),
   ]);
@@ -34,9 +35,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <p>Billing, recharge and settlement — 30-day snapshot below, all figures live from Neon.</p>
         </div>
         <div className="spacer" />
+        <Link href="/billing/invoices" className="btn ghost">Invoices →</Link>
         <Link href="/billing/vouchers" className="btn ghost">Vouchers →</Link>
         <Link href="/tariffs" className="btn ghost">Plan →</Link>
       </div>
+
+      <BillingTabs active="/billing" />
 
       <div className="grid g4" style={{ marginBottom: 14 }}>
         <div className="card kpi"><span className="label">Issued (30d)</span><span className="value num">{mmk(kpis.issued)}</span></div>
@@ -98,26 +102,17 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </div>
 
         <div className="card">
-          <header><h3>Recent invoices</h3></header>
+          <header><h3 style={{ flex: 1 }}>Recent invoices</h3><Link href="/billing/invoices" className="btn sm ghost">View all →</Link></header>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>ID</th><th>Customer</th><th className="t-right">Amount</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>ID</th><th>Customer</th><th className="t-right">Amount</th><th>Status</th></tr></thead>
               <tbody>
                 {recentInvoices.map((i) => (
-                  <tr key={i.id}>
-                    <td className="num">{i.id}</td>
+                  <tr key={i.id} className="clickable">
+                    <td className="num"><Link href={`/billing/invoices/${i.id}`}>{i.id}</Link></td>
                     <td>{custNames.get(i.customerId) ?? i.customerId}</td>
                     <td className="t-right num">{mmk(i.amountMmk + i.taxMmk)}</td>
                     <td><Pill status={i.status} /></td>
-                    <td>
-                      {i.status !== "paid" && (
-                        <form action={settleInvoice} className="row">
-                          <input type="hidden" name="invoiceId" value={i.id} />
-                          <input type="hidden" name="method" value="kbzpay" />
-                          <button className="btn sm" type="submit">Settle</button>
-                        </form>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 
 // Collections: who currently owes money, not a status-tabbed customer roster.
 // Aggregates every unpaid invoice (pending or overdue, including a lead's very
@@ -81,6 +81,49 @@ export async function getPaymentMethodBreakdown() {
   const byMethod = new Map<string, number>();
   for (const p of payments) byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + p.amountMmk);
   return Array.from(byMethod.entries()).map(([method, value]) => ({ method, value }));
+}
+
+// Invoices sub-module: the full ledger, filterable by city/plan/status, each
+// row linking to an extensive detail view — separate from the Billing
+// dashboard's KPIs and the Collections (who-owes-money) widget.
+export async function listInvoices(opts: { q?: string; city?: string; tariffId?: string; status?: string; limit?: number }) {
+  const conds = [];
+  if (opts.status) conds.push(eq(s.invoices.status, opts.status));
+  if (opts.tariffId) conds.push(eq(s.invoices.tariffId, opts.tariffId));
+  if (opts.city) conds.push(eq(s.customers.city, opts.city));
+  if (opts.q) {
+    const like = `%${opts.q}%`;
+    conds.push(or(ilike(s.customers.fullName, like), ilike(s.invoices.id, like), ilike(s.customers.id, like)));
+  }
+
+  const rows = await db
+    .select({
+      id: s.invoices.id, amountMmk: s.invoices.amountMmk, taxMmk: s.invoices.taxMmk,
+      issuedDate: s.invoices.issuedDate, dueDate: s.invoices.dueDate, status: s.invoices.status, method: s.invoices.method,
+      customerId: s.customers.id, customerName: s.customers.fullName, customerCity: s.customers.city, customerZone: s.customers.zone,
+      tariffName: s.tariffs.name,
+    })
+    .from(s.invoices)
+    .leftJoin(s.customers, eq(s.invoices.customerId, s.customers.id))
+    .leftJoin(s.tariffs, eq(s.invoices.tariffId, s.tariffs.id))
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(s.invoices.issuedDate))
+    .limit(opts.limit ?? 300);
+
+  return rows;
+}
+
+export async function getInvoiceDetail(id: string) {
+  const [invoice] = await db.select().from(s.invoices).where(eq(s.invoices.id, id)).limit(1);
+  if (!invoice) return null;
+
+  const [customer, tariff, paymentsRows] = await Promise.all([
+    db.select().from(s.customers).where(eq(s.customers.id, invoice.customerId)).limit(1).then((r) => r[0] ?? null),
+    invoice.tariffId ? db.select().from(s.tariffs).where(eq(s.tariffs.id, invoice.tariffId)).limit(1).then((r) => r[0] ?? null) : null,
+    db.select().from(s.payments).where(eq(s.payments.invoiceId, id)).orderBy(desc(s.payments.timestamp)),
+  ]);
+
+  return { invoice, customer, tariff, payments: paymentsRows };
 }
 
 export async function listVouchers(opts: { status?: string }) {

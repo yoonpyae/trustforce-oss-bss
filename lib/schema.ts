@@ -155,6 +155,10 @@ export const locations = pgTable("locations", {
   name: text("name").notNull(), // e.g. "Yangon"
   code: text("code").notNull(), // e.g. "YGN" — the location segment of a subscriber ID
   nextSequence: integer("next_sequence").notNull().default(1),
+  city: text("city"),
+  township: text("township"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
 });
 
 // Singleton row (id = "default") for system-wide configuration that doesn't
@@ -394,6 +398,10 @@ export const leads = pgTable("leads", {
   source: text("source").notNull().default("website"), // website | referral | walk-in | facebook | call | field-survey
   zone: text("zone"),
   address: text("address"),
+  city: text("city"),
+  township: text("township"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
   interestedTariffId: text("interested_tariff_id"),
   status: text("status").notNull().default("new"), // new | contacted | qualified | quoted | won | lost
   assignedTo: text("assigned_to"),

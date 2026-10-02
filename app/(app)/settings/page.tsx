@@ -91,7 +91,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div>
         <div className="card">
           <header><h3 style={{ flex: 1 }}>Locations</h3><span className="hint">Drives the subscriber ID prefix</span></header>
-          <LocationsPanel locations={locations} isSysadmin={isSysadmin} />
+          <LocationsPanel locations={locations} isSysadmin={isSysadmin} serviceCode={systemSettings.subscriberIdServiceCode} digitCount={systemSettings.subscriberIdDigitCount} />
         </div>
       </div>
 

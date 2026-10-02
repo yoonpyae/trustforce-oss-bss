@@ -5,6 +5,7 @@ import * as s from "@/lib/schema";
 import { Pill } from "@/components/Pill";
 import { dateTimeStr } from "@/lib/format";
 import { generateVouchers, redeemVoucher } from "@/lib/actions/billing";
+import { BillingTabs } from "@/components/BillingTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ export default async function VouchersPage({ searchParams }: { searchParams: Pro
           <p>{unused} unused of {vouchers.length} shown. Codes generated here are real rows — money-like credentials, kept out of CSV export by design.</p>
         </div>
       </div>
+
+      <BillingTabs active="/billing/vouchers" />
 
       <div className="split">
         <div className="card">

@@ -29,6 +29,9 @@ export async function createLead(formData: FormData) {
   const phone = String(formData.get("phone") || "").trim();
   if (!fullName || !phone) return;
 
+  const latRaw = String(formData.get("lat") || "").trim();
+  const lngRaw = String(formData.get("lng") || "").trim();
+
   const id = await nextLeadId();
   await db.insert(s.leads).values({
     id, fullName, phone,
@@ -36,6 +39,10 @@ export async function createLead(formData: FormData) {
     source: String(formData.get("source") || "website"),
     zone: String(formData.get("zone") || "").trim() || null,
     address: String(formData.get("address") || "").trim() || null,
+    city: String(formData.get("city") || "").trim() || null,
+    township: String(formData.get("township") || "").trim() || null,
+    lat: latRaw ? parseFloat(latRaw) : null,
+    lng: lngRaw ? parseFloat(lngRaw) : null,
     interestedTariffId: String(formData.get("tariffId") || "").trim() || null,
     notes: String(formData.get("notes") || "").trim() || null,
     assignedTo: "sales.team",
@@ -45,10 +52,14 @@ export async function createLead(formData: FormData) {
   // Alert the fiber team: an uncertain new inquiry needs a port-availability
   // and fiber-feasibility check before it can be converted to a subscriber.
   const zone = String(formData.get("zone") || "").trim();
+  const city = String(formData.get("city") || "").trim();
+  const township = String(formData.get("township") || "").trim();
+  const place = [township, city].filter(Boolean).join(", ") || zone;
+  const coords = latRaw && lngRaw ? ` (${latRaw}, ${lngRaw})` : "";
   await notifyRole(
     "network_ops",
     "New inquiry — feasibility check needed",
-    `${fullName}${zone ? ` in ${zone}` : ""} — confirm port availability and fiber feasibility.`,
+    `${fullName}${place ? ` in ${place}` : ""}${coords} — confirm port availability and fiber feasibility.`,
     { link: "/leads", relatedType: "lead", relatedId: id }
   );
 
@@ -130,9 +141,14 @@ export async function convertLeadToCustomer(formData: FormData) {
   // first invoice below is settled. See settleInvoice's pending-activation branch.
   await db.insert(s.customers).values({
     id: custId, username: custId.toLowerCase(), fullName: lead.fullName,
-    email: lead.email, phone: lead.phone, address: lead.address || `${lead.zone ?? "Yangon"}`,
+    email: lead.email, phone: lead.phone,
+    address: lead.address || [lead.township, lead.city ?? lead.zone ?? "Yangon"].filter(Boolean).join(", "),
+    city: lead.city ?? "Yangon",
     accountType: "personal", zone: lead.zone || (sn?.zone ?? "Hlaing"),
-    lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
+    // Prefer the lead's own recorded coordinates (captured at the inquiry) over
+    // a generic jitter around the splitter node, since they're a real address.
+    lat: lead.lat ?? (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006,
+    lng: lead.lng ?? (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
     status: "pending", installedDate: now, tariffId: tariff.id, expiryDate: null, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase(),
     locationId: location.id, ipPoolId: tariff.ipPoolId, vlan: tariff.vlan,

@@ -28,6 +28,11 @@ export async function getZones() {
   return rows.map((r) => r.zone).sort();
 }
 
+export async function getCities() {
+  const rows = await db.select({ city: s.customers.city }).from(s.customers).groupBy(s.customers.city);
+  return rows.map((r) => r.city).filter((c): c is string => !!c).sort();
+}
+
 export async function getCustomerDetail(id: string) {
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, id)).limit(1);
   if (!customer) return null;

@@ -52,7 +52,6 @@ export function SubscriberDetail({ detail, tariffs, ipPools }: { detail: Detail;
               <dl className="defn">
                 <dt>Date of birth</dt><dd>{c.dateOfBirth ? dateStr(c.dateOfBirth) : "—"}</dd>
                 <dt>Identification</dt><dd className="num">{c.nationalId ?? "—"}</dd>
-                <dt>Bank account</dt><dd className="num">{c.bankAccount ?? "—"}</dd>
                 <dt>Contract ID</dt><dd className="num">{c.contractId ?? "—"}</dd>
                 <dt>Contract end</dt><dd>{c.contractEndDate ? dateStr(c.contractEndDate) : "—"}</dd>
                 <dt>Management IP</dt><dd className="num">{c.managementIp ?? "—"}</dd>

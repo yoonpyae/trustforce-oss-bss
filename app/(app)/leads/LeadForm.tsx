@@ -54,6 +54,14 @@ export function LeadForm({ zones, tariffs }: { zones: string[]; tariffs: Tariff[
                     </select>
                   </div>
                 </div>
+                <div className="grid g2">
+                  <div className="field"><label>City</label><input name="city" placeholder="Yangon" /></div>
+                  <div className="field"><label>Township</label><input name="township" placeholder="Hlaing" /></div>
+                </div>
+                <div className="grid g2">
+                  <div className="field"><label>Latitude</label><input name="lat" type="number" step="any" placeholder="16.85" /></div>
+                  <div className="field"><label>Longitude</label><input name="lng" type="number" step="any" placeholder="96.13" /></div>
+                </div>
                 <div className="field"><label>Address</label><input name="address" /></div>
                 <div className="field"><label>Notes</label><textarea name="notes" /></div>
               </div>

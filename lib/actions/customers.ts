@@ -234,7 +234,6 @@ export async function addCustomer(formData: FormData) {
   const contractEndRaw = String(formData.get("contractEndDate") || "");
   const contractEndDate = contractEndRaw ? new Date(contractEndRaw) : null;
   const customStatus = String(formData.get("customStatus") || "customer").trim() || "customer";
-  const bankAccount = String(formData.get("bankAccount") || "").trim() || null;
   const managementIp = String(formData.get("managementIp") || "").trim() || null;
   const useOwnRouter = formData.get("useOwnRouter") === "on";
   const referredBy = String(formData.get("referredBy") || "").trim() || null;
@@ -271,7 +270,7 @@ export async function addCustomer(formData: FormData) {
     accountType, zone, lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
     status, customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: username,
-    dateOfBirth, nationalId, contractId, contractEndDate, bankAccount, managementIp, useOwnRouter, referredBy,
+    dateOfBirth, nationalId, contractId, contractEndDate, managementIp, useOwnRouter, referredBy,
     locationId: location.id, ipPoolId, vlan: tariff.vlan, poeUsername, poePassword,
   });
   await db.insert(s.onus).values({
