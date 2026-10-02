@@ -16,7 +16,7 @@ export async function saveTariff(formData: FormData) {
   const priceMmk = parseInt(String(formData.get("priceMmk") || "0"), 10);
   const validityDays = parseInt(String(formData.get("validityDays") || "30"), 10);
   const bandwidthProfileId = String(formData.get("bandwidthProfileId"));
-  const ipPoolId = String(formData.get("ipPoolId"));
+  const ipPoolId = String(formData.get("ipPoolId") || "").trim() || null;
   const nasId = String(formData.get("nasId"));
   const expiredBehavior = String(formData.get("expiredBehavior") || "suspend");
   const status = String(formData.get("status") || "active");
@@ -24,9 +24,13 @@ export async function saveTariff(formData: FormData) {
   const vlan = vlanRaw ? parseInt(vlanRaw, 10) : null;
 
   // Pre-publish dependency check (NationNet review §5.4): bandwidth profile,
-  // IP pool, NAS and expiry behaviour must all be resolvable before a plan goes live.
-  if (!name || !bandwidthProfileId || !ipPoolId || !nasId || !validityDays || !priceMmk) {
-    throw new Error("Pre-publish check failed: bandwidth profile, IP pool, NAS, validity and price are all required.");
+  // NAS and expiry behaviour must all be resolvable before a plan goes live.
+  // IP pool is intentionally NOT required here — it's decoupled from the
+  // Traffic Plan (bandwidth policy) and is only offered as a suggested
+  // onboarding default; the binding assignment lives on the customer
+  // (customers.ipPoolId), set independently via assignIpPool.
+  if (!name || !bandwidthProfileId || !nasId || !validityDays || !priceMmk) {
+    throw new Error("Pre-publish check failed: bandwidth profile, NAS, validity and price are all required.");
   }
 
   const newId = id || "TP-" + Math.floor(100 + Math.random() * 900);

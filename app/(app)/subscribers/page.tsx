@@ -3,19 +3,19 @@ import { listCustomers, getZones } from "@/lib/queries/customers";
 import { listLocations } from "@/lib/queries/settings";
 import { db } from "@/lib/db";
 import * as s from "@/lib/schema";
-import { Pill } from "@/components/Pill";
-import { mmk, dateStr } from "@/lib/format";
 import { AddCustomerForm } from "./AddCustomerForm";
+import { SubscribersTable } from "./SubscribersTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function SubscribersPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; zone?: string }> }) {
   const sp = await searchParams;
-  const [customers, zones, tariffs, locations] = await Promise.all([
+  const [customers, zones, tariffs, locations, ipPools] = await Promise.all([
     listCustomers({ q: sp.q, status: sp.status, zone: sp.zone, limit: 300 }),
     getZones(),
     db.select().from(s.tariffs),
     listLocations(),
+    db.select().from(s.ipPools),
   ]);
 
   return (
@@ -27,7 +27,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
         </div>
         <div className="spacer" />
         <a href="/api/reports/customers" className="btn ghost">Export CSV</a>
-        <AddCustomerForm zones={zones} tariffs={tariffs} locations={locations} />
+        <AddCustomerForm zones={zones} tariffs={tariffs} locations={locations} ipPools={ipPools} />
       </div>
 
       <form className="toolbar" method="get">
@@ -48,40 +48,7 @@ export default async function SubscribersPage({ searchParams }: { searchParams: 
         {(sp.q || sp.status || sp.zone) && <Link href="/subscribers" className="btn sm ghost">Clear</Link>}
       </form>
 
-      <div className="card">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Zone</th>
-                <th>Plan</th>
-                <th>Status</th>
-                <th>Expiry</th>
-                <th className="t-right">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((c) => (
-                <tr key={c.id} className="clickable">
-                  <td>
-                    <Link href={`/subscribers/${c.id}`}><b>{c.fullName}</b></Link>
-                    <div className="hint num">{c.id} · {c.phone}</div>
-                  </td>
-                  <td>{c.zone}</td>
-                  <td>{c.tariff?.name ?? "—"}</td>
-                  <td><Pill status={c.status} /></td>
-                  <td>{dateStr(c.expiryDate)}</td>
-                  <td className="t-right num">{mmk(c.balanceMmk)}</td>
-                </tr>
-              ))}
-              {customers.length === 0 && (
-                <tr><td colSpan={6} className="empty">No subscribers match this filter.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SubscribersTable customers={customers} tariffs={tariffs} />
     </>
   );
 }

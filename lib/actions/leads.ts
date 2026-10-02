@@ -135,7 +135,7 @@ export async function convertLeadToCustomer(formData: FormData) {
     lat: (sn?.lat ?? 16.85) + (Math.random() - 0.5) * 0.006, lng: (sn?.lng ?? 96.13) + (Math.random() - 0.5) * 0.006,
     status: "pending", installedDate: now, tariffId: tariff.id, expiryDate: null, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: custId.toLowerCase(),
-    locationId: location.id, vlan: tariff.vlan,
+    locationId: location.id, ipPoolId: tariff.ipPoolId, vlan: tariff.vlan,
   });
   await db.insert(s.onus).values({
     id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:01",

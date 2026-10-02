@@ -278,7 +278,7 @@ async function main() {
         managementIp: isStaticPool ? "103.86.14." + (2 + (cusSeq % 250)) : null,
         useOwnRouter: chance(isBiz ? 0.05 : 0.15),
         referredBy: pick(referralPool),
-        locationId: "LOC-YGN", vlan: tariff.vlan,
+        locationId: "LOC-YGN", ipPoolId: tariff.ipPoolId, vlan: tariff.vlan,
       });
 
       onuRows.push({

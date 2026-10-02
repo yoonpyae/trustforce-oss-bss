@@ -5,6 +5,7 @@ import { addCustomer } from "@/lib/actions/customers";
 
 type Tariff = { id: string; name: string; priceMmk: number; accountType: string };
 type Location = { id: string; name: string; code: string };
+type Pool = { id: string; name: string };
 
 function generatePassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -13,7 +14,7 @@ function generatePassword() {
   return out;
 }
 
-export function AddCustomerForm({ zones, tariffs, locations }: { zones: string[]; tariffs: Tariff[]; locations: Location[] }) {
+export function AddCustomerForm({ zones, tariffs, locations, ipPools }: { zones: string[]; tariffs: Tariff[]; locations: Location[]; ipPools: Pool[] }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -139,7 +140,18 @@ export function AddCustomerForm({ zones, tariffs, locations }: { zones: string[]
                       {tariffs.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.priceMmk.toLocaleString()} MMK</option>)}
                     </select>
                   </div>
+                  <div className="field">
+                    <label>IP pool</label>
+                    <select name="ipPoolId" defaultValue="">
+                      <option value="">Use plan&rsquo;s default pool</option>
+                      {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <span className="hint">Independent of the plan — changing the plan later never moves this.</span>
+                  </div>
+                </div>
+                <div className="grid g2">
                   <div className="field"><label>Management IP (static plans)</label><input name="managementIp" placeholder="103.86.14.x" /></div>
+                  <div />
                 </div>
                 <div className="grid g2">
                   <div className="field"><label>Contract ID</label><input name="contractId" /></div>

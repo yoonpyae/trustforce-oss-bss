@@ -27,8 +27,9 @@ export default async function TariffsPage() {
         <div>
           <h1>Plan</h1>
           <p>
-            Plan catalogue with the pre-publish dependency check: bandwidth profile, IP pool, NAS, validity and expiry
-            behaviour must all resolve before a plan can be saved.
+            Plan catalogue with the pre-publish dependency check: bandwidth profile, NAS, validity and expiry
+            behaviour must all resolve before a plan can be saved. IP pool is a suggested onboarding default only —
+            decoupled from the plan, and assigned independently per subscriber (Subscribers → Network &amp; optical).
             {!canEdit && " Your role has read-only access to plans."}
           </p>
         </div>
@@ -42,7 +43,7 @@ export default async function TariffsPage() {
             <thead>
               <tr>
                 <th>Plan</th><th>Type</th><th className="t-right">Price</th><th>Validity</th>
-                <th>Bandwidth</th><th>IP pool</th><th>NAS</th><th>VLAN</th><th>Status</th><th></th>
+                <th>Bandwidth</th><th>Default IP pool</th><th>NAS</th><th>VLAN</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -55,7 +56,7 @@ export default async function TariffsPage() {
                     <td className="t-right num">{mmk(t.priceMmk)}</td>
                     <td>{t.validityDays}d</td>
                     <td className="num">{bw ? `${bw.downKbps / 1000}M/${bw.upKbps / 1000}M` : "—"}</td>
-                    <td>{poolMap.get(t.ipPoolId)?.name ?? "—"}</td>
+                    <td>{t.ipPoolId ? poolMap.get(t.ipPoolId)?.name ?? "—" : "—"}</td>
                     <td>{nasMap.get(t.nasId)?.name ?? "—"}</td>
                     <td className="num">{t.vlan ?? "—"}</td>
                     <td><Pill status={t.status} /></td>

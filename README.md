@@ -147,13 +147,35 @@ Configured in **Settings → System settings**:
   subscriber's ID is generated once at onboarding and is not editable afterwards. This only applies going
   forward — the ~550 seeded demo subscribers keep their original `CUS-0001`-style IDs, matching how a real
   system would roll the new scheme out without renumbering existing accounts.
-- **VLAN**: each plan (Tariffs) can carry a VLAN; a subscriber inherits it from their plan at onboarding, plan
-  change, or recharge, shown on their Network & optical tab.
+- **VLAN**: a subscriber's own address-resource assignment (see "Traffic Plan & IP Pool decoupling" below) — a
+  plan can carry a *suggested* VLAN offered as the default at onboarding only, never re-applied afterwards.
 - **Billing calculation mode**: `monthly` (default) always charges a plan's full fee on renewal. `daily`
   excludes days a subscriber had no service — recharging an overdue/expired subscriber only charges for the
   active days in the new cycle, at the plan's daily rate.
 - **POE device credentials**: an optional username/password pair per subscriber, for a secondary POE-powered
   device on the same drop (e.g. a CCTV camera) — set at onboarding, shown on Network & optical.
+
+## Traffic Plan & IP Pool decoupling
+
+A Traffic Plan (Tariffs/Plan page) is a bandwidth policy — it no longer binds a subscriber to one fixed IP
+pool or VLAN. Each subscriber carries their own `ipPoolId`/`vlan`, set independently:
+
+- **Onboarding**: the New Subscriber form defaults the IP pool to the chosen plan's *suggested* pool, but it's
+  a plain dropdown — pick any pool. The plan's "Default IP pool" field on the Plan page itself is now optional
+  and purely a convenience default; the pre-publish dependency check no longer requires it (only bandwidth
+  profile, NAS, validity and price do).
+- **Changing a subscriber's plan** (individually, or in bulk — see below) only ever updates their bandwidth/
+  pricing/validity. It never touches `ipPoolId` or `vlan`. Same for a renewal/recharge.
+- **Reassigning IP pool/VLAN** is its own action — "Address resource" card on a subscriber's Network & optical
+  tab (`assignIpPool`) — completely independent of what plan they're on.
+- **Individual Traffic Plan change**: unchanged UX (Subscribers → subscriber → Overview tab → Change plan),
+  now decoupled under the hood.
+- **Batch Traffic Plan change**: select any number of subscribers with the checkboxes on the Subscribers list
+  and apply one plan to all of them at once (`batchChangePlan`) — e.g. a bandwidth-tier-wide price change. Each
+  subscriber still gets its own proration invoice if applicable; none of their IP pools or VLANs move.
+
+Existing subscribers were backfilled once (their `ipPoolId` set to whatever their plan implied at the time)
+so nothing changed for them functionally — only *future* plan changes stop silently moving their pool.
 
 ## Payment gateway webhook
 

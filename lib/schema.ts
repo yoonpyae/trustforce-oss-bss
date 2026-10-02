@@ -139,7 +139,10 @@ export const tariffs = pgTable("tariffs", {
   priceMmk: integer("price_mmk").notNull(),
   validityDays: integer("validity_days").notNull(),
   bandwidthProfileId: text("bandwidth_profile_id").notNull(),
-  ipPoolId: text("ip_pool_id").notNull(),
+  // Decoupled from a hard requirement (see customers.ipPoolId): this is now only
+  // a suggested default offered at onboarding, not a binding assignment — a plan
+  // change never touches a customer's actual IP pool. Same for vlan below.
+  ipPoolId: text("ip_pool_id"),
   nasId: text("nas_id").notNull(),
   vlan: integer("vlan"),
   expiredBehavior: text("expired_behavior").notNull().default("suspend"), // suspend | disable | grace
@@ -204,7 +207,12 @@ export const customers = pgTable("customers", {
   useOwnRouter: boolean("use_own_router").notNull().default(false),
   referredBy: text("referred_by"),
   locationId: text("location_id"), // drives the subscriber ID's location prefix at creation
-  vlan: integer("vlan"), // copied from the plan at recharge/plan-change time, editable per subscriber
+  // IP pool and VLAN are the subscriber's own address-resource assignment —
+  // set at onboarding (defaulting to the chosen plan's suggested pool, but
+  // independently overridable) and changed only via assignIpPool, never as a
+  // side effect of a Traffic Plan change. See lib/actions/customers.ts.
+  ipPoolId: text("ip_pool_id"),
+  vlan: integer("vlan"),
   poeUsername: text("poe_username"), // POE device credentials (e.g. a CCTV camera on the same drop)
   poePassword: text("poe_password"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

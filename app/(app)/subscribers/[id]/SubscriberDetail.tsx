@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { recharge, addBalance, grantGrace, setStatus, changePlan } from "@/lib/actions/customers";
+import { recharge, addBalance, grantGrace, setStatus, changePlan, assignIpPool } from "@/lib/actions/customers";
 import { createTicket } from "@/lib/actions/tickets";
 import { mmk, dateStr, dateTimeStr } from "@/lib/format";
 import { Pill } from "@/components/Pill";
@@ -9,10 +9,11 @@ import type { getCustomerDetail } from "@/lib/queries/customers";
 
 type Detail = NonNullable<Awaited<ReturnType<typeof getCustomerDetail>>>;
 type Tariff = { id: string; name: string; priceMmk: number; validityDays: number; accountType: string };
+type Pool = { id: string; name: string; rangeCidr: string };
 
 const TABS = ["Overview", "Billing", "Network & optical", "Support"] as const;
 
-export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs: Tariff[] }) {
+export function SubscriberDetail({ detail, tariffs, ipPools }: { detail: Detail; tariffs: Tariff[]; ipPools: Pool[] }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
   const [ticketError, setTicketError] = useState<string | null>(null);
   const c = detail.customer;
@@ -227,11 +228,33 @@ export function SubscriberDetail({ detail, tariffs }: { detail: Detail; tariffs:
                 <dt>RX optical</dt><dd className="num">{detail.onu.rxDbmBase.toFixed(1)} dBm</dd>
                 <dt>TX optical</dt><dd className="num">{detail.onu.txDbmBase.toFixed(1)} dBm</dd>
                 <dt>Last reboot</dt><dd>{dateTimeStr(detail.onu.lastReboot)}</dd>
-                <dt>VLAN</dt><dd className="num">{c.vlan ?? "—"}</dd>
                 <dt>Own router</dt><dd>{c.useOwnRouter ? "Yes" : "No"}</dd>
               </dl>
             </div>
           )}
+          <div className="card">
+            <header><h3>Address resource</h3></header>
+            <dl className="defn">
+              <dt>IP pool</dt><dd className="num">{ipPools.find((p) => p.id === c.ipPoolId)?.name ?? "—"}</dd>
+              <dt>VLAN</dt><dd className="num">{c.vlan ?? "—"}</dd>
+            </dl>
+            <p className="hint" style={{ marginTop: 4 }}>
+              Independent of the Traffic Plan — changing plan on the Overview tab never moves this.
+            </p>
+            <form
+              action={assignIpPool}
+              className="row"
+              style={{ marginTop: 8, gap: 6 }}
+            >
+              <input type="hidden" name="customerId" value={c.id} />
+              <select name="ipPoolId" className="plain" defaultValue={c.ipPoolId ?? ""} style={{ flex: 1 }}>
+                <option value="">No pool</option>
+                {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input className="plain num" name="vlan" type="number" min={1} max={4094} defaultValue={c.vlan ?? ""} placeholder="VLAN" style={{ width: 90 }} />
+              <button className="btn sm primary" type="submit">Reassign</button>
+            </form>
+          </div>
           {(c.poeUsername || c.poePassword) && (
             <div className="card">
               <header><h3>POE device</h3></header>

@@ -14,7 +14,10 @@ export default async function SubscriberPage({ params }: { params: Promise<{ id:
   const detail = await getCustomerDetail(id.toUpperCase());
   if (!detail) notFound();
 
-  const tariffs = await db.select().from(s.tariffs);
+  const [tariffs, ipPools] = await Promise.all([
+    db.select().from(s.tariffs),
+    db.select().from(s.ipPools),
+  ]);
 
   return (
     <>
@@ -25,7 +28,7 @@ export default async function SubscriberPage({ params }: { params: Promise<{ id:
           <p>{detail.customer.phone} · {detail.customer.zone} · <Pill status={detail.customer.status} /></p>
         </div>
       </div>
-      <SubscriberDetail detail={detail} tariffs={tariffs} />
+      <SubscriberDetail detail={detail} tariffs={tariffs} ipPools={ipPools} />
     </>
   );
 }

@@ -23,10 +23,9 @@ export async function getNetworkOverview(limit = 80) {
     return { customer: c, tariff, bw, session: sess };
   });
 
-  const poolUsage = ipPools.map((p) => {
-    const used = tariffs.filter((t) => t.ipPoolId === p.id).reduce((a, t) => a + customers.filter((c) => c.tariffId === t.id).length, 0);
-    return { pool: p, used };
-  });
+  // Pool usage comes from the subscriber's own assigned ipPoolId — not from
+  // their plan — since IP pool and Traffic Plan are decoupled.
+  const poolUsage = ipPools.map((p) => ({ pool: p, used: customers.filter((c) => c.ipPoolId === p.id).length }));
 
   const nasSessions = nasDevices.map((n) => ({
     nas: n,

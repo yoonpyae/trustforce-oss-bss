@@ -59,7 +59,10 @@ export async function recharge(formData: FormData) {
   });
   await db.insert(s.payments).values({ id: await nextPaymentId(), invoiceId: invId, customerId, amountMmk: amountMmk + tax, method, reconciled: true });
 
-  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, vlan: tariff.vlan, suspendedAt: null, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  // Renewal only extends validity/billing — it never touches vlan/ipPoolId,
+  // which are the subscriber's own address-resource assignment (decoupled
+  // from the Traffic Plan; see assignIpPool).
+  await db.update(s.customers).set({ status: "active", expiryDate: newExpiry, suspendedAt: null, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
   if (wasDown) await db.update(s.onus).set({ status: "online" }).where(eq(s.onus.customerId, customerId));
   await logAudit("Recharge", "customer", customerId, `${tariff.name} renewed via ${method}, new expiry ${newExpiry.toISOString().slice(0, 10)}${billingNote}`);
 
@@ -109,14 +112,15 @@ export async function setStatus(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-export async function changePlan(formData: FormData) {
-  const customerId = String(formData.get("customerId"));
-  const newTariffId = String(formData.get("tariffId"));
-
+// Shared by the individual and batch plan-change actions. Only ever touches
+// tariffId (bandwidth/pricing/validity) — vlan and ipPoolId are the
+// subscriber's own address-resource assignment and are never affected by a
+// Traffic Plan change (decoupled; see assignIpPool).
+async function applyPlanChange(customerId: string, newTariffId: string) {
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
-  if (!customer) return;
+  if (!customer) return null;
   const [newTariff] = await db.select().from(s.tariffs).where(eq(s.tariffs.id, newTariffId)).limit(1);
-  if (!newTariff) return;
+  if (!newTariff) return null;
   const oldTariff = customer.tariffId ? (await db.select().from(s.tariffs).where(eq(s.tariffs.id, customer.tariffId)).limit(1))[0] : null;
 
   let prorationNote = "no prior plan";
@@ -137,11 +141,56 @@ export async function changePlan(formData: FormData) {
     }
   }
 
-  await db.update(s.customers).set({ tariffId: newTariff.id, vlan: newTariff.vlan, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  await db.update(s.customers).set({ tariffId: newTariff.id, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
   await logAudit("Plan change", "customer", customerId, `${oldTariff?.name ?? "—"} → ${newTariff.name} (${prorationNote})`);
+  return { oldTariff, newTariff, prorationNote };
+}
+
+export async function changePlan(formData: FormData) {
+  const customerId = String(formData.get("customerId"));
+  const newTariffId = String(formData.get("tariffId"));
+  await applyPlanChange(customerId, newTariffId);
 
   revalidatePath(`/subscribers/${customerId}`);
   revalidatePath("/subscribers");
+}
+
+// Batch Traffic Plan change: apply one plan to several subscribers at once.
+// Bounded by the staff member's explicit checkbox selection (not a full-table
+// scan), so a plain per-row loop is fine here — unlike a background sweep
+// over the whole customer base, this only ever touches what was checked.
+export async function batchChangePlan(formData: FormData) {
+  const customerIds = formData.getAll("customerIds").map(String).filter(Boolean);
+  const newTariffId = String(formData.get("tariffId"));
+  if (!customerIds.length || !newTariffId) throw new Error("Select at least one subscriber and a plan.");
+
+  let changed = 0;
+  for (const customerId of customerIds) {
+    const result = await applyPlanChange(customerId, newTariffId);
+    if (result) changed++;
+  }
+  await logAudit("Batch plan change", "customer", null, `${changed}/${customerIds.length} subscriber(s) → ${newTariffId}`);
+
+  revalidatePath("/subscribers");
+  return { changed, total: customerIds.length };
+}
+
+// Independent IP pool (and, since it's the same address-resource class,
+// optionally VLAN) assignment — never triggered by a Traffic Plan change.
+export async function assignIpPool(formData: FormData) {
+  const customerId = String(formData.get("customerId"));
+  const ipPoolId = String(formData.get("ipPoolId") || "").trim() || null;
+  const vlanRaw = String(formData.get("vlan") || "").trim();
+  const vlan = vlanRaw ? parseInt(vlanRaw, 10) : null;
+
+  const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+  if (!customer) return;
+
+  await db.update(s.customers).set({ ipPoolId, vlan, updatedAt: new Date() }).where(eq(s.customers.id, customerId));
+  await logAudit("IP pool reassigned", "customer", customerId, `Pool ${ipPoolId ?? "none"}, VLAN ${vlan ?? "none"}`);
+
+  revalidatePath(`/subscribers/${customerId}`);
+  revalidatePath("/network");
 }
 
 export async function addCustomer(formData: FormData) {
@@ -154,6 +203,10 @@ export async function addCustomer(formData: FormData) {
 
   const [tariff] = await db.select().from(s.tariffs).where(eq(s.tariffs.id, tariffId)).limit(1);
   if (!tariff) throw new Error("Selected plan was not found.");
+
+  // IP pool is picked independently of the plan (decoupled) — defaults to the
+  // plan's suggested pool when left blank, but never re-derived afterwards.
+  const ipPoolId = String(formData.get("ipPoolId") || "").trim() || tariff.ipPoolId || null;
 
   // Subscriber ID prefix & formatting: location is mandatory and drives the
   // ID's prefix; System Settings sets the service code and digit count.
@@ -219,7 +272,7 @@ export async function addCustomer(formData: FormData) {
     status, customStatus, installedDate: now, tariffId: tariff.id, expiryDate: expiry, balanceMmk: 0,
     snId: port.snId, snPort: port.port, pppoeUsername: username,
     dateOfBirth, nationalId, contractId, contractEndDate, bankAccount, managementIp, useOwnRouter, referredBy,
-    locationId: location.id, vlan: tariff.vlan, poeUsername, poePassword,
+    locationId: location.id, ipPoolId, vlan: tariff.vlan, poeUsername, poePassword,
   });
   await db.insert(s.onus).values({
     id: onuId, serial: "NEWONU" + onuId.replace("ONU-", ""), mac: "48:3F:DA:00:00:00",

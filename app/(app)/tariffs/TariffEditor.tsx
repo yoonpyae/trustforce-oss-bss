@@ -8,7 +8,7 @@ type Pool = { id: string; name: string };
 type Nas = { id: string; name: string };
 type Tariff = {
   id: string; name: string; status: string; billingType: string; accountType: string;
-  priceMmk: number; validityDays: number; bandwidthProfileId: string; ipPoolId: string; nasId: string; expiredBehavior: string;
+  priceMmk: number; validityDays: number; bandwidthProfileId: string; ipPoolId: string | null; nasId: string; expiredBehavior: string;
   vlan: number | null;
 };
 
@@ -83,11 +83,13 @@ export function TariffEditor({
                 </div>
                 <div className="grid g2">
                   <div className="field">
-                    <label>IP pool</label>
-                    <select name="ipPoolId" defaultValue={tariff?.ipPoolId ?? ""} required>
-                      <option value="" disabled>Select…</option>
+                    <label>Default IP pool</label>
+                    <select name="ipPoolId" defaultValue={tariff?.ipPoolId ?? ""}>
+                      <option value="">None — pick a pool per subscriber</option>
                       {ipPools.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
+                    <span className="hint">A suggestion offered at onboarding only — not binding. Pools are assigned
+                      per subscriber and never change on a plan change.</span>
                   </div>
                   <div className="field">
                     <label>NAS</label>
